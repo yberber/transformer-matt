@@ -128,11 +128,13 @@ Float32 = Annotated[
 ]
 
 
-class _Contract(BaseModel):
+class Contract(BaseModel):
+    """The base of every contract model: unknown fields are rejected, and values are immutable."""
+
     model_config = ConfigDict(extra="forbid", frozen=True, protected_namespaces=())
 
 
-class ModelConfig(_Contract):
+class ModelConfig(Contract):
     """The model config values the Trace was built with."""
 
     vocab_size: int
@@ -142,13 +144,13 @@ class ModelConfig(_Contract):
     n_head: int
 
 
-class TraceHeader(_Contract):
+class TraceHeader(Contract):
     model_id: str
     model_revision: str
     config: ModelConfig
 
 
-class Token(_Contract):
+class Token(Contract):
     """A token of the vocabulary: its ID, its text and its raw bytes."""
 
     token_id: int
@@ -156,7 +158,7 @@ class Token(_Contract):
     token_bytes: Base64Bytes
 
 
-class TopTokens(_Contract):
+class TopTokens(Contract):
     """The most likely next tokens, most likely first, with their probabilities in the same order."""
 
     tokens: list[Token]
@@ -169,7 +171,7 @@ class TopTokens(_Contract):
         return self
 
 
-class Embedding(_Contract):
+class Embedding(Contract):
     """An n_embd-dimension embedding vector: all of it as int8 for drawing, its
     first dimensions exactly, and its norm."""
 
@@ -182,7 +184,7 @@ class Embedding(_Contract):
     norm: Float32
 
 
-class PositionRecord(_Contract):
+class PositionRecord(Contract):
     """Everything recorded for one Position."""
 
     token_id: int
@@ -207,7 +209,19 @@ class PositionRecord(_Contract):
     predictions: TopTokens
 
 
-class Trace(_Contract):
+def check_per_layer_values(header: TraceHeader, positions: list[PositionRecord], first_position: int) -> None:
+    """Each record, the first at Position `first_position`, carries one attention row
+    per head over the Positions up to its own, and one MLP impact and logit lens per layer."""
+    layers = header.config.n_layer
+    heads = layers * header.config.n_head
+    for i, position in enumerate(positions, start=first_position):
+        if len(position.attention) != heads * (i + 1):
+            raise ValueError(f"expected {heads} attention rows of {i + 1} weights at Position {i}")
+        if len(position.mlp_impact) != layers or len(position.logit_lens) != layers:
+            raise ValueError(f"expected an MLP impact and a logit lens for each of {layers} layers at Position {i}")
+
+
+class Trace(Contract):
     """Every recorded value for a Prompt and its Steps."""
 
     header: TraceHeader
@@ -217,11 +231,5 @@ class Trace(_Contract):
 
     @model_validator(mode="after")
     def _per_layer_values_for_every_layer(self) -> "Trace":
-        layers = self.header.config.n_layer
-        heads = layers * self.header.config.n_head
-        for i, position in enumerate(self.positions):
-            if len(position.attention) != heads * (i + 1):
-                raise ValueError(f"expected {heads} attention rows of {i + 1} weights at Position {i}")
-            if len(position.mlp_impact) != layers or len(position.logit_lens) != layers:
-                raise ValueError(f"expected an MLP impact and a logit lens for each of {layers} layers at Position {i}")
+        check_per_layer_values(self.header, self.positions, first_position=0)
         return self

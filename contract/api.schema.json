@@ -1,0 +1,390 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "Embedding": {
+      "additionalProperties": false,
+      "description": "An n_embd-dimension embedding vector: all of it as int8 for drawing, its\nfirst dimensions exactly, and its norm.",
+      "properties": {
+        "values": {
+          "contentEncoding": "base64",
+          "contentMediaType": "application/x-int8",
+          "pattern": "^[A-Za-z0-9+/]*={0,2}$",
+          "title": "Values",
+          "type": "string"
+        },
+        "scale": {
+          "title": "Scale",
+          "type": "number"
+        },
+        "first_dimensions": {
+          "contentEncoding": "base64",
+          "contentMediaType": "application/x-float32-le",
+          "pattern": "^[A-Za-z0-9+/]*={0,2}$",
+          "title": "First Dimensions",
+          "type": "string"
+        },
+        "norm": {
+          "title": "Norm",
+          "type": "number"
+        }
+      },
+      "required": [
+        "values",
+        "scale",
+        "first_dimensions",
+        "norm"
+      ],
+      "title": "Embedding",
+      "type": "object"
+    },
+    "Error": {
+      "additionalProperties": false,
+      "description": "Every non-2xx response except Health's 503. `message` is for developers; the\nweb app words its own message from `code`.",
+      "properties": {
+        "code": {
+          "enum": [
+            "prompt_too_long",
+            "continuation_too_long",
+            "empty_prompt",
+            "invalid_request",
+            "model_loading",
+            "not_found",
+            "method_not_allowed"
+          ],
+          "title": "Code",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "title": "Error",
+      "type": "object"
+    },
+    "Health": {
+      "additionalProperties": false,
+      "description": "Whether the server can run the model: \"loading\" (503) until the model is\nloaded, then \"ready\" (200).",
+      "properties": {
+        "status": {
+          "enum": [
+            "loading",
+            "ready"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "title": "Health",
+      "type": "object"
+    },
+    "ModelConfig": {
+      "additionalProperties": false,
+      "description": "The model config values the Trace was built with.",
+      "properties": {
+        "vocab_size": {
+          "title": "Vocab Size",
+          "type": "integer"
+        },
+        "n_positions": {
+          "title": "N Positions",
+          "type": "integer"
+        },
+        "n_embd": {
+          "title": "N Embd",
+          "type": "integer"
+        },
+        "n_layer": {
+          "title": "N Layer",
+          "type": "integer"
+        },
+        "n_head": {
+          "title": "N Head",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "vocab_size",
+        "n_positions",
+        "n_embd",
+        "n_layer",
+        "n_head"
+      ],
+      "title": "ModelConfig",
+      "type": "object"
+    },
+    "PositionRecord": {
+      "additionalProperties": false,
+      "description": "Everything recorded for one Position.",
+      "properties": {
+        "token_id": {
+          "title": "Token Id",
+          "type": "integer"
+        },
+        "token_text": {
+          "title": "Token Text",
+          "type": "string"
+        },
+        "token_bytes": {
+          "contentEncoding": "base64",
+          "pattern": "^[A-Za-z0-9+/]*={0,2}$",
+          "title": "Token Bytes",
+          "type": "string"
+        },
+        "token_embedding": {
+          "$ref": "#/$defs/Embedding"
+        },
+        "position_embedding": {
+          "$ref": "#/$defs/Embedding"
+        },
+        "attention": {
+          "contentEncoding": "base64",
+          "contentMediaType": "application/x-uint8",
+          "pattern": "^[A-Za-z0-9+/]*={0,2}$",
+          "title": "Attention",
+          "type": "string"
+        },
+        "mlp_impact": {
+          "contentEncoding": "base64",
+          "contentMediaType": "application/x-float32-le",
+          "pattern": "^[A-Za-z0-9+/]*={0,2}$",
+          "title": "Mlp Impact",
+          "type": "string"
+        },
+        "logit_lens": {
+          "items": {
+            "$ref": "#/$defs/TopTokens"
+          },
+          "title": "Logit Lens",
+          "type": "array"
+        },
+        "predictions": {
+          "$ref": "#/$defs/TopTokens"
+        }
+      },
+      "required": [
+        "token_id",
+        "token_text",
+        "token_bytes",
+        "token_embedding",
+        "position_embedding",
+        "attention",
+        "mlp_impact",
+        "logit_lens",
+        "predictions"
+      ],
+      "title": "PositionRecord",
+      "type": "object"
+    },
+    "PromptStepRequest": {
+      "additionalProperties": false,
+      "description": "Run the Prompt text and take `advance` Steps; the response starts at Position 0.",
+      "properties": {
+        "prompt": {
+          "description": "Prompt text.",
+          "title": "Prompt",
+          "type": "string"
+        },
+        "advance": {
+          "maximum": 64,
+          "minimum": 0,
+          "title": "Advance",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "prompt",
+        "advance"
+      ],
+      "title": "PromptStepRequest",
+      "type": "object"
+    },
+    "StepResponse": {
+      "additionalProperties": false,
+      "description": "The records of the Positions a Step request added, in a Trace's shape (ADR 0001):\na Trace's Positions from `first_position` on. Appending them to the Positions\nbefore it gives the Trace; with `first_position` 0 the response is a whole Trace.",
+      "properties": {
+        "header": {
+          "$ref": "#/$defs/TraceHeader"
+        },
+        "prompt_length": {
+          "title": "Prompt Length",
+          "type": "integer"
+        },
+        "first_position": {
+          "title": "First Position",
+          "type": "integer"
+        },
+        "positions": {
+          "items": {
+            "$ref": "#/$defs/PositionRecord"
+          },
+          "title": "Positions",
+          "type": "array"
+        }
+      },
+      "required": [
+        "header",
+        "prompt_length",
+        "first_position",
+        "positions"
+      ],
+      "title": "StepResponse",
+      "type": "object"
+    },
+    "Token": {
+      "additionalProperties": false,
+      "description": "A token of the vocabulary: its ID, its text and its raw bytes.",
+      "properties": {
+        "token_id": {
+          "title": "Token Id",
+          "type": "integer"
+        },
+        "token_text": {
+          "title": "Token Text",
+          "type": "string"
+        },
+        "token_bytes": {
+          "contentEncoding": "base64",
+          "pattern": "^[A-Za-z0-9+/]*={0,2}$",
+          "title": "Token Bytes",
+          "type": "string"
+        }
+      },
+      "required": [
+        "token_id",
+        "token_text",
+        "token_bytes"
+      ],
+      "title": "Token",
+      "type": "object"
+    },
+    "TokenStepRequest": {
+      "additionalProperties": false,
+      "description": "Continue a sequence: the token IDs so far (Prompt then Continuation), of which\nthe first `prompt_length` are the Prompt. The response holds only the `advance`\nnew Positions. Continuation text is never re-tokenized, so the IDs travel as they are.",
+      "properties": {
+        "token_ids": {
+          "items": {
+            "exclusiveMaximum": 50257,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "title": "Token Ids",
+          "type": "array"
+        },
+        "prompt_length": {
+          "minimum": 0,
+          "title": "Prompt Length",
+          "type": "integer"
+        },
+        "advance": {
+          "maximum": 64,
+          "minimum": 0,
+          "title": "Advance",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "token_ids",
+        "prompt_length",
+        "advance"
+      ],
+      "title": "TokenStepRequest",
+      "type": "object"
+    },
+    "TokenizeRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "prompt": {
+          "description": "Prompt text.",
+          "title": "Prompt",
+          "type": "string"
+        }
+      },
+      "required": [
+        "prompt"
+      ],
+      "title": "TokenizeRequest",
+      "type": "object"
+    },
+    "TokenizeResponse": {
+      "additionalProperties": false,
+      "description": "The Prompt's tokens in order, and how many there are (which may exceed the limit).",
+      "properties": {
+        "tokens": {
+          "items": {
+            "$ref": "#/$defs/Token"
+          },
+          "title": "Tokens",
+          "type": "array"
+        },
+        "count": {
+          "title": "Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "tokens",
+        "count"
+      ],
+      "title": "TokenizeResponse",
+      "type": "object"
+    },
+    "TopTokens": {
+      "additionalProperties": false,
+      "description": "The most likely next tokens, most likely first, with their probabilities in the same order.",
+      "properties": {
+        "tokens": {
+          "items": {
+            "$ref": "#/$defs/Token"
+          },
+          "title": "Tokens",
+          "type": "array"
+        },
+        "probabilities": {
+          "contentEncoding": "base64",
+          "contentMediaType": "application/x-float32-le",
+          "pattern": "^[A-Za-z0-9+/]*={0,2}$",
+          "title": "Probabilities",
+          "type": "string"
+        }
+      },
+      "required": [
+        "tokens",
+        "probabilities"
+      ],
+      "title": "TopTokens",
+      "type": "object"
+    },
+    "TraceHeader": {
+      "additionalProperties": false,
+      "properties": {
+        "model_id": {
+          "title": "Model Id",
+          "type": "string"
+        },
+        "model_revision": {
+          "title": "Model Revision",
+          "type": "string"
+        },
+        "config": {
+          "$ref": "#/$defs/ModelConfig"
+        }
+      },
+      "required": [
+        "model_id",
+        "model_revision",
+        "config"
+      ],
+      "title": "TraceHeader",
+      "type": "object"
+    }
+  },
+  "title": "Inside the Transformer API"
+}

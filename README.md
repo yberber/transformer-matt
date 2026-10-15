@@ -6,8 +6,9 @@ A website that shows curious non-experts how GPT-2 small turns a piece of text i
 
 | Path | What it holds |
 | --- | --- |
-| `python/` | The Python core (`inside_transformer`): tokenizes Prompts, runs GPT-2 greedily for a number of Steps and builds Traces. Also the regeneration script (`regenerate`) and the Example selection script (`regenerate.selection`). |
-| `contract/trace.schema.json` | The committed contract schema, exported from the core's Pydantic models. |
+| `python/` | The Python core (`inside_transformer`): tokenizes Prompts, runs GPT-2 greedily for a number of Steps and builds Traces. Also the inference server (`server`), the regeneration script (`regenerate`) and the Example selection script (`regenerate.selection`). |
+| `contract/trace.schema.json` | The committed contract schema for the Trace (the Example file format), exported from the core's Pydantic models. |
+| `contract/api.schema.json` | The committed contract schema for the inference server's requests and responses, exported the same way. |
 | `web/` | The web app (Svelte 5, Vite, TypeScript). |
 | `web/public/data/` | Generated Example files (readable `.json` and brotli `.json.br`) and the pinned GPT-2 config. |
 
@@ -27,10 +28,33 @@ npm run dev        # development server at http://localhost:5173
 npm run build      # static build in web/dist
 ```
 
+## Run the inference server
+
+Live mode runs the user's own Prompt on a small CPU inference server (FastAPI on uvicorn, one worker process) over the same Python core:
+
+```sh
+cd python
+uv run serve       # http://127.0.0.1:8000; set HOST and PORT to change it
+```
+
+The model loads in the background after startup, and `GET /health` answers 503 `{"status": "loading"}` until it is ready, then 200 `{"status": "ready"}`. Forward passes run in a pool of two threads, and torch's thread count is set to the available cores divided between them.
+
+| Endpoint | Request | Response |
+| --- | --- | --- |
+| `POST /tokenize` | `{"prompt": "…"}` | `{"tokens": [{token_id, token_text, token_bytes}], "count": n}`. The count may exceed 64, so the web app can show "70 / 64". |
+| `POST /step` | `{"prompt": "…", "advance": k}`, or `{"token_ids": […], "prompt_length": p, "advance": k}` | The Trace's header and `prompt_length`, `first_position`, and the records of the new Positions (`first_position` on). |
+| `GET /health` | | `{"status": "loading" \| "ready"}` |
+
+With Prompt text, Step runs the Prompt and takes `k` Steps, and the response holds every Position from 0: it has the shape of an Example file, plus `first_position: 0`. With token IDs (the Prompt and the Continuation so far), Step reruns them, takes `k` more Steps and returns only the `k` new Positions, starting at `first_position` = the number of IDs sent. The Continuation is never re-tokenized. `advance` 0 is prefill only, 1 is the next token, and `N` restores a shared Live link in one request. The KV cache is reused across the Steps of one request.
+
+Errors return `{"code": …, "message": …}`. The web app words its own message from `code`, and `message` is for developers. Limit errors are 422 with code `prompt_too_long` (more than 64 Prompt tokens) or `continuation_too_long` (more than 64 Continuation tokens in all). Other 422 codes are `empty_prompt` and `invalid_request`. While the model loads, tokenize and Step return 503 `model_loading`. An unknown path is 404 `not_found`, and a wrong method is 405 `method_not_allowed`. Every response matches `contract/api.schema.json`. Two Step requests can run side by side, each in its own forward-pass thread. Ticket 15 adds the per-client rate limits and the 429 responses.
+
+The server never logs a request body or Prompt text, and stores nothing. uvicorn's access log is off, because it would record query strings. The reverse proxy keeps the access log instead. `uv run pytest` runs a real server and fails if any Prompt text reaches a log record (at any level), stdout or stderr.
+
 ## Test
 
 ```sh
-cd python && uv run pytest     # Example files vs an independent Hugging Face greedy run (tokens, predictions, embeddings, attention, MLP impact, logit lens), selection rules, regeneration reproduces the committed files, size budget, schema drift
+cd python && uv run pytest     # Example files vs an independent Hugging Face greedy run (tokens, predictions, embeddings, attention, MLP impact, logit lens), selection rules, regeneration reproduces the committed files, size budget, schema drift; the inference server's API against the real model (responses validate against the committed schema, each Example Prompt with `advance` 16 matches its Example file, limit errors, health while loading, no Prompt text in logs)
 
 cd web
 npm run check                  # typecheck (svelte-check)
@@ -93,4 +117,4 @@ cd python && uv run export-schema && uv run regenerate
 cd ../web && npm run gen:types
 ```
 
-`uv run pytest` fails if `contract/trace.schema.json` differs from the export, and `npm test` fails if the generated TypeScript types differ from the schema.
+`uv run export-schema` writes both `contract/trace.schema.json` and `contract/api.schema.json`; the server's request and response models live in `python/src/inside_transformer/api.py`. `uv run pytest` fails if either committed schema differs from the export, and `npm test` fails if the generated TypeScript types differ from the Trace schema.
