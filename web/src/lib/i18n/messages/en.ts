@@ -38,6 +38,7 @@ export const en = {
   "live.running": "Running the model…",
   "live.previewLabel": "Token preview",
   "live.nonEnglish": "This does not look like English. GPT-2 was trained mostly on English text, so its Continuation may be odd.",
+  "live.restoring": "Restoring the shared run up to Step {step}…",
   "live.empty": "Type a Prompt and run the model to see it inside GPT-2.",
   "live.end": "This run has reached Live mode's limit of {steps} Steps, so there is no next token to add.",
   "live.error.promptTooLong": "Your Prompt has more than {max} tokens, the limit in Live mode. Shorten it to run it.",

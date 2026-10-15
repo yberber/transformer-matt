@@ -38,3 +38,14 @@ test("a server that does not answer within 3 s is unavailable", async ({ page })
   await expect(page.getByRole("status").filter({ hasText: "Checking the server" })).toBeVisible();
   await expect(page.getByRole("alert")).toContainText("The inference server is unavailable", { timeout: 5_000 });
 });
+
+test("a shared Live link with server unavailable says so, with one click back to Example mode", async ({ page }) => {
+  const fragment = new URLSearchParams({ prompt: "Once upon a time, in a small village by the sea" });
+  await page.goto(`/?mode=live&example=village&view=tokenize&step=2&lang=en#${fragment}`);
+  const alert = page.getByRole("alert");
+  await expect(alert).toContainText("The inference server is unavailable");
+
+  await alert.getByRole("button", { name: "Back to Example mode" }).click();
+  await expect(page).toHaveURL(/mode=example/);
+  await expect(page.getByRole("list", { name: "Tokens" }).getByRole("listitem")).toHaveCount(12);
+});

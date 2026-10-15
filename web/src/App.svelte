@@ -1,6 +1,6 @@
 <script lang="ts">
   import { untrack } from "svelte";
-  import { navigate, route } from "./lib/app/route.svelte";
+  import { navigate, onHistoryMove, route } from "./lib/app/route.svelte";
   import { stepLimit } from "./lib/app/viewState";
   import ArchitectureView from "./lib/architecture/ArchitectureView.svelte";
   import AttentionView from "./lib/attention/AttentionView.svelte";
@@ -30,6 +30,26 @@
   // Every view sees the sequence as it stands at the current Step.
   const shown = $derived(trace && atStep(trace, route.step));
 
+  // A shared Live link carries its Prompt in the URL fragment (ADR 0002): once the server
+  // is ready, it is run up to the shared Step in one request.
+  if (route.mode === "live" && route.prompt) live.restore(route.prompt, route.step);
+
+  // So does Back, Forward or a link that changes only the fragment, if the URL asks for a
+  // Prompt or a Step the browser does not hold.
+  $effect(() =>
+    onHistoryMove(() => {
+      const held = live.trace ? stepCount(live.trace) : 0;
+      if (route.mode === "live" && route.prompt && (route.prompt !== live.prompt || route.step > held)) {
+        live.restore(route.prompt, route.step);
+      }
+    }),
+  );
+
+  // In Live mode the URL carries the Prompt, so a link to the view reopens it.
+  $effect(() => {
+    if (liveMode && route.prompt !== live.prompt) navigate({ prompt: live.prompt }, { replace: true });
+  });
+
   // Only Live mode calls the server: entering it checks the server, leaving it stops every call.
   $effect(() => {
     if (!liveMode) return;
@@ -38,14 +58,16 @@
   });
 
   // A Live run holds only the Steps taken so far, and none once its Prompt is edited.
+  // Restoring a shared Live link keeps its Step until the Steps arrive.
   $effect(() => {
-    if (!liveMode) return;
+    if (!liveMode || live.sharedStep !== undefined) return;
     const steps = live.trace ? stepCount(live.trace) : 0;
     if (route.step > steps) navigate({ step: steps }, { replace: true });
   });
 
+  // Shows the run's last Step: Step 0, or a shared Live link's Step.
   async function runLive() {
-    if (await live.run()) navigate({ step: 0 }, { replace: true });
+    if ((await live.run()) && live.trace) navigate({ step: stepCount(live.trace) }, { replace: true });
   }
 
   // Shows the new Step, unless the user moved to another Step while it was on its way.

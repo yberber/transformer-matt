@@ -37,6 +37,7 @@ export const tr: Record<MessageKey, string> = {
   "live.running": "Model çalışıyor…",
   "live.previewLabel": "Token önizlemesi",
   "live.nonEnglish": "Bu metin İngilizce görünmüyor. GPT-2 çoğunlukla İngilizce metinlerle eğitildi, bu yüzden devam metni tuhaf olabilir.",
+  "live.restoring": "Paylaşılan çalıştırma, Adım {step} dahil geri yükleniyor…",
   "live.empty": "GPT-2'nin içinde görmek için bir Prompt yazın ve modeli çalıştırın.",
   "live.end": "Bu çalıştırma Canlı modun {steps} adımlık sınırına ulaştı; eklenecek başka token yok.",
   "live.error.promptTooLong": "Prompt'unuz Canlı moddaki sınır olan {max} tokendan uzun. Çalıştırmak için kısaltın.",

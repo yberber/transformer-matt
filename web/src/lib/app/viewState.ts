@@ -1,6 +1,7 @@
-// View state lives in the query string so a URL reopens the same view (ADR 0002).
-// Unknown or missing values fall back to defaults; the language defaults to the
-// browser's, with English as fallback.
+// View state lives in the query string so a URL reopens the same view. A Live-mode
+// Prompt lives in the fragment instead, which browsers never send to the server
+// (ADR 0002). Unknown or missing values fall back to defaults; the language defaults
+// to the browser's, with English as fallback.
 import { MAX_CONTINUATION_TOKENS } from "../live/api";
 import { DEFAULT_EXAMPLE, EXAMPLE_IDS, EXAMPLE_STEPS, type ExampleId } from "../trace/examples";
 
@@ -54,6 +55,8 @@ export interface ViewState {
   /** 0 is the Prompt alone. */
   step: number;
   lang: Lang;
+  /** In Live mode, the user's Prompt; it travels in the URL fragment, never the query string. */
+  prompt: string;
 }
 
 function pick<T extends string>(options: readonly T[], value: string | null | undefined): T | undefined {
@@ -74,7 +77,7 @@ function browserLang(languages: readonly string[]): Lang {
   return "en";
 }
 
-export function readViewState(search: string, languages: readonly string[]): ViewState {
+export function readViewState(search: string, hash: string, languages: readonly string[]): ViewState {
   const params = new URLSearchParams(search);
   const mode = pick(MODES, params.get("mode")) ?? "example";
   return {
@@ -85,9 +88,11 @@ export function readViewState(search: string, languages: readonly string[]): Vie
     head: pickNumber(params.get("head"), 1, HEADS) ?? 1,
     step: pickNumber(params.get("step"), 0, stepLimit(mode)) ?? 0,
     lang: pick(LANGS, params.get("lang")) ?? browserLang(languages),
+    prompt: new URLSearchParams(hash.replace(/^#/, "")).get("prompt") ?? "",
   };
 }
 
+/** The query string: every part of the view state but the Prompt. */
 export function viewStateQuery({ mode, example, view, layer, head, step, lang }: ViewState): string {
   return new URLSearchParams({
     mode,
@@ -98,4 +103,9 @@ export function viewStateQuery({ mode, example, view, layer, head, step, lang }:
     step: String(step),
     lang,
   }).toString();
+}
+
+/** The fragment: the Prompt in Live mode, and nothing otherwise. */
+export function viewStateFragment({ mode, prompt }: ViewState): string {
+  return mode === "live" && prompt ? new URLSearchParams({ prompt }).toString() : "";
 }

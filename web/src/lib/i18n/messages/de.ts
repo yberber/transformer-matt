@@ -37,6 +37,7 @@ export const de: Record<MessageKey, string> = {
   "live.running": "Das Modell läuft…",
   "live.previewLabel": "Token-Vorschau",
   "live.nonEnglish": "Das sieht nicht nach Englisch aus. GPT-2 wurde überwiegend mit englischen Texten trainiert, daher kann die Fortsetzung seltsam ausfallen.",
+  "live.restoring": "Der geteilte Lauf wird bis Schritt {step} wiederhergestellt…",
   "live.empty": "Geben Sie einen Prompt ein und führen Sie das Modell aus, um ihn im Inneren von GPT-2 zu sehen.",
   "live.end": "Dieser Lauf hat die Grenze des Live-Modus von {steps} Schritten erreicht, daher gibt es kein weiteres Token.",
   "live.error.promptTooLong": "Ihr Prompt hat mehr als {max} Tokens, die Grenze im Live-Modus. Kürzen Sie ihn, um ihn auszuführen.",

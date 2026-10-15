@@ -1,6 +1,7 @@
 // Live mode's state: whether the inference server can run the model, the user's
 // Prompt with its token preview, and the Trace of the run so far. The Trace is held
-// in the browser only; editing the Prompt discards it.
+// in the browser only; editing the Prompt discards it. A shared Live link restores its
+// Prompt and every Step up to the shared one in a single Step request.
 import { appendStep, decodeStepTrace, decodeToken, type Token, type Trace } from "../trace/decode";
 import * as api from "./api";
 import { LiveApiError, MAX_PROMPT_TOKENS, type LiveErrorCode } from "./api";
@@ -50,6 +51,8 @@ class LiveSession {
   error = $state<LiveErrorCode>();
   /** While rate limited: how many seconds the server asked to wait, if it said. */
   retryAfter = $state<number>();
+  /** From opening a shared Live link until it is restored: the Step it was shared at. */
+  sharedStep = $state<number>();
 
   #health?: AbortController;
   #tokenize?: AbortController;
@@ -62,8 +65,16 @@ class LiveSession {
     if (this.status === "off" || this.status === "unavailable") void this.#checkHealth();
   }
 
-  /** Leaves Live mode. The Prompt and its Trace stay for a return to Live mode. */
+  /** Opens a shared Live link: its Prompt is run up to its Step once the server is ready. */
+  restore(prompt: string, step: number): void {
+    this.setPrompt(prompt);
+    this.sharedStep = step;
+    if (this.status === "ready") void this.run();
+  }
+
+  /** Leaves Live mode. The Prompt and its Trace stay for a return to Live mode; a restore not yet done is dropped. */
   deactivate(): void {
+    this.sharedStep = undefined;
     this.#health?.abort();
     this.#tokenize?.abort();
     this.#step?.abort();
@@ -82,14 +93,21 @@ class LiveSession {
     this.prompt = prompt;
     this.trace = undefined;
     this.error = undefined;
+    this.sharedStep = undefined;
     this.#step?.abort();
     this.busy = false;
     this.#scheduleTokenize();
   }
 
-  /** Runs the Prompt alone (Step 0). Resolves whether it succeeded. */
-  run(): Promise<boolean> {
-    return this.#request({ prompt: this.prompt, advance: 0 }, (response) => decodeStepTrace(response));
+  /**
+   * Runs the Prompt alone (Step 0), or, restoring a shared Live link, up to its Step in one
+   * request. Resolves whether it succeeded.
+   */
+  async run(): Promise<boolean> {
+    const advance = this.sharedStep ?? 0;
+    const done = await this.#request({ prompt: this.prompt, advance }, (response) => decodeStepTrace(response));
+    if (done) this.sharedStep = undefined;
+    return done;
   }
 
   /** Takes one more Step from the token IDs so far. Resolves whether it succeeded. */
@@ -158,6 +176,7 @@ class LiveSession {
       }
       this.status = "ready";
       this.#scheduleTokenize(0);
+      if (this.sharedStep !== undefined) void this.run();
     } catch (error) {
       if (!controller.signal.aborted) this.#fail(error);
     }

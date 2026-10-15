@@ -1,7 +1,7 @@
 <script lang="ts">
   // Live mode's bench: the server's state, the Prompt field with the server's own token
   // preview and an "n / 64" count, and Run. If the server is unavailable, says so with one
-  // click back to Example mode.
+  // click back to Example mode. While a shared Live link is restored, shows its progress.
   import { navigate } from "../app/route.svelte";
   import { t, tPlural, type MessageKey } from "../i18n/i18n";
   import { positionColor } from "../tokens/color";
@@ -81,6 +81,12 @@
       </button>
     </div>
 
+    {#if live.busy && live.sharedStep !== undefined}
+      <div class="restoring">
+        <progress aria-labelledby="{id}-restoring"></progress>
+        <span id="{id}-restoring">{t("live.restoring", { step: live.sharedStep })}</span>
+      </div>
+    {/if}
     {#if live.tooLong}
       <p class="notice" id="{id}-limit">{t("live.error.promptTooLong", limits)}</p>
     {/if}
@@ -179,6 +185,18 @@
   .run:disabled {
     opacity: 0.5;
     cursor: default;
+  }
+  .restoring {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.75rem;
+    font-size: 0.85rem;
+    color: var(--ink-secondary);
+  }
+  progress {
+    width: clamp(6rem, 25vw, 12rem);
+    accent-color: var(--line);
   }
   .notice {
     margin: 0;
