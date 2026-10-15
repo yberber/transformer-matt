@@ -60,6 +60,46 @@ test("read the statistics", async ({ page }) => {
   await expect(page.getByRole("heading", { level: 2 })).toHaveText("How we calculate");
 });
 
+// One token reading n Positions costs 247,064,064 FLOPs for everything but attention, plus
+// 18,432n for the attention scores and as much for the weighted sum. At 17 Positions the scores
+// are 313,344 of 247,690,752 (0.127%); at 1024, 18,874,368 of 284,812,800 (6.63%).
+test("see how a token's cost grows with context length", async ({ page }) => {
+  await page.goto("/?example=village&view=statistics&step=5&lang=en");
+  const section = page.getByRole("region", { name: "Cost by context length" });
+  await expect(section.getByRole("link", { name: "Theoretical Estimate: how we calculate" })).toBeVisible();
+
+  // The text alternative names the range, the log scale, the growing attention share and this text.
+  const chart = section.getByRole("figure");
+  await expect(chart).toContainText("logarithmic scale");
+  await expect(chart).toContainText("from 0.00746% at 1 Position to 6.63% at 1,024");
+  await expect(chart).toContainText("This text is at 17 Positions, where attention scores are 0.127%");
+
+  // The marker sits at the current length and moves as the user steps.
+  const marker = section.getByTestId("context-marker");
+  await expect(marker).toContainText("17");
+  await page.getByRole("button", { name: "Next token" }).click();
+  await expect(marker).toContainText("18");
+  await expect(chart).toContainText("This text is at 18 Positions");
+
+  // The keyboard reads the chart at any length.
+  const slider = section.getByRole("slider", { name: "Read the chart at a context length" });
+  await expect(slider).toHaveAttribute("aria-valuenow", "18");
+  await slider.focus();
+  await page.keyboard.press("End");
+  await expect(slider).toHaveAttribute("aria-valuenow", "1024");
+  const readout = section.getByTestId("context-readout");
+  await expect(readout).toContainText("285 million FLOPs");
+  await expect(readout).toContainText("6.63%");
+  await page.keyboard.press("PageDown");
+  await expect(slider).toHaveAttribute("aria-valuenow", "512");
+
+  // The exact numbers behind the chart, at every doubling and at this text's length.
+  await page.getByText("Show details").click();
+  const exact = page.getByRole("table", { name: "One token's cost by context length, exactly" });
+  await expect(exact.getByRole("row", { name: /^1,024/ })).toContainText("284,812,800");
+  await expect(exact.getByRole("row", { name: /^18 / })).toContainText("247,727,616");
+});
+
 test("how we calculate documents every formula and what is left out, in every language", async ({ page }) => {
   await page.goto("/?example=village&view=calculate&lang=en");
   await expect(page.getByRole("heading", { level: 2 })).toHaveText("How we calculate");
@@ -101,4 +141,24 @@ test.describe("on a phone", () => {
       ).toEqual([]);
     });
   }
+
+  test("the context-length chart's labels stay on screen in every language", async ({ page }) => {
+    for (const lang of ["en", "tr", "de"]) {
+      await page.goto(`/?example=moon&view=statistics&step=16&lang=${lang}`);
+      const labels = page.getByRole("region").filter({ has: page.getByRole("slider") }).locator("svg text");
+      await expect(labels.first()).toBeAttached();
+      // Inside the chart's own box, so no label runs over the frame around it.
+      const sides = await labels.evaluateAll((texts) =>
+        texts.map((text) => {
+          const chart = text.closest("svg")!.getBoundingClientRect();
+          const { left, right } = text.getBoundingClientRect();
+          return { text: text.textContent, left: left - chart.left, right: chart.right - right };
+        }),
+      );
+      for (const { text, left, right } of sides) {
+        expect.soft(left, `${lang}: "${text}"`).toBeGreaterThanOrEqual(0);
+        expect.soft(right, `${lang}: "${text}"`).toBeGreaterThanOrEqual(-4);
+      }
+    }
+  });
 });

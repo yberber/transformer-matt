@@ -10,6 +10,8 @@
   import ViewFrame from "../shell/ViewFrame.svelte";
   import type { Trace } from "../trace/decode";
   import { COMPONENT_COLOR } from "./colors";
+  import ContextChart from "./ContextChart.svelte";
+  import { contextCost, exactLengths } from "./contextChart";
   import EstimateLink from "./EstimateLink.svelte";
   import { bytesText, flopsText, shareText } from "./format";
   import LayerBars from "./LayerBars.svelte";
@@ -29,6 +31,11 @@
   // The next Step decodes one more token, reading every Position so far and itself.
   const next = $derived(decodeFlops(GPT2_CONFIG, positions + 1));
   const cache = $derived(kvCacheBytes(GPT2_CONFIG, positions));
+
+  // The context-length chart's exact numbers.
+  const contextRows = $derived(
+    exactLengths(GPT2_CONFIG.n_positions, positions).map((length) => contextCost(GPT2_CONFIG, length)),
+  );
 </script>
 
 <ViewFrame view="statistics" atStep>
@@ -120,6 +127,12 @@
     <LayerBars flops={cost.total} />
   </section>
 
+  <section class="part" aria-labelledby="stats-context">
+    <h3><span id="stats-context">{t("stats.context")}</span> <EstimateLink /></h3>
+    <p class="note">{t("stats.contextNote", { max: GPT2_CONFIG.n_positions })}</p>
+    <ContextChart config={GPT2_CONFIG} {positions} />
+  </section>
+
   {#snippet details()}
     <p><EstimateLink /></p>
     <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
@@ -160,6 +173,36 @@
     <p class="note">
       {t("stats.exactNotes", { layer: cost.total.layer, perToken: perPromptToken, bytes: cache.total, n: positions })}
     </p>
+    <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+    <div class="table-scroll" role="region" aria-labelledby="stats-context-caption" tabindex="0">
+      <table class="exact">
+        <caption id="stats-context-caption">{t("stats.contextExactCaption")}</caption>
+        <thead>
+          <tr>
+            <th scope="col">{t("stats.contextLength")}</th>
+            <th scope="col">{t("stats.part.scores")}</th>
+            <th scope="col">{t("stats.part.weightedSum")}</th>
+            <th scope="col">{t("stats.contextRest")}</th>
+            <th scope="col">{t("stats.total")}</th>
+            <th scope="col">{t("stats.contextShare")}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {#each contextRows as row (row.length)}
+            <tr class:current={row.length === positions}>
+              <th scope="row">
+                {formatNumber(row.length)}{#if row.length === positions}{` · ${t("stats.contextThis")}`}{/if}
+              </th>
+              <td>{formatNumber(row.scores)}</td>
+              <td>{formatNumber(row.weightedSum)}</td>
+              <td>{formatNumber(row.rest)}</td>
+              <td>{formatNumber(row.total)}</td>
+              <td>{shareText(row.scores, row.total)}</td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+    </div>
   {/snippet}
 </ViewFrame>
 
@@ -284,5 +327,9 @@
   }
   .exact {
     margin-top: 0.75rem;
+  }
+  .current th,
+  .current td {
+    font-weight: 700;
   }
 </style>
