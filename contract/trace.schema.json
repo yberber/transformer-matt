@@ -1,6 +1,42 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$defs": {
+    "Embedding": {
+      "additionalProperties": false,
+      "description": "An n_embd-dimension embedding vector: all of it as int8 for drawing, its\nfirst dimensions exactly, and its norm.",
+      "properties": {
+        "values": {
+          "contentEncoding": "base64",
+          "contentMediaType": "application/x-int8",
+          "pattern": "^[A-Za-z0-9+/]*={0,2}$",
+          "title": "Values",
+          "type": "string"
+        },
+        "scale": {
+          "title": "Scale",
+          "type": "number"
+        },
+        "first_dimensions": {
+          "contentEncoding": "base64",
+          "contentMediaType": "application/x-float32-le",
+          "pattern": "^[A-Za-z0-9+/]*={0,2}$",
+          "title": "First Dimensions",
+          "type": "string"
+        },
+        "norm": {
+          "title": "Norm",
+          "type": "number"
+        }
+      },
+      "required": [
+        "values",
+        "scale",
+        "first_dimensions",
+        "norm"
+      ],
+      "title": "Embedding",
+      "type": "object"
+    },
     "ModelConfig": {
       "additionalProperties": false,
       "description": "The model config values the Trace was built with.",
@@ -54,6 +90,12 @@
           "title": "Token Bytes",
           "type": "string"
         },
+        "token_embedding": {
+          "$ref": "#/$defs/Embedding"
+        },
+        "position_embedding": {
+          "$ref": "#/$defs/Embedding"
+        },
         "predictions": {
           "$ref": "#/$defs/TopTokens"
         }
@@ -62,6 +104,8 @@
         "token_id",
         "token_text",
         "token_bytes",
+        "token_embedding",
+        "position_embedding",
         "predictions"
       ],
       "title": "PositionRecord",

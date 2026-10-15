@@ -78,6 +78,28 @@ export const de: Record<MessageKey, string> = {
   "predict.greedy":
     "Das Decoding ist greedy: Es wird immer das wahrscheinlichste Token angehängt, deshalb ergibt derselbe Prompt immer dieselbe Fortsetzung.",
   "predict.detailsNote": "Die Wahrscheinlichkeiten beziehen sich auf alle {vocabulary} Tokens; die Top 10 ergeben zusammen {sum}.",
+  "embed.listLabel": "Embeddings pro Position",
+  "embed.added":
+    "Token-Embedding und Positions-Embedding werden Zahl für Zahl addiert, und ihre Summe geht in den ersten Block.",
+  "embed.legend":
+    "Jeder Streifen ist ein Vektor, seine {width} Zahlen von links nach rechts. Positive Zahlen erscheinen in der Farbe des Tokens, negative in Grau, umso kräftiger, je weiter sie von 0 entfernt sind.",
+  "embed.scaleLow": "{value} oder weniger",
+  "embed.scaleHigh": "{value} oder mehr",
+  "embed.token": "Token-Embedding",
+  "embed.position": "Positions-Embedding",
+  "embed.sum": "Summe, in Block 1",
+  "embed.tokenStrip": "Token-Embedding an Position {n}",
+  "embed.positionStrip": "Positions-Embedding an Position {n}",
+  "embed.sumStrip": "Summe an Position {n}, die in den ersten Block geht",
+  "embed.truncated":
+    "Gekürzte Ansicht: die ersten {shown} von {width} Dimensionen jedes Vektors. Die Norm, die Länge des Vektors, bezieht sich auf alle {width}.",
+  "embed.sumNote":
+    "Die ersten {shown} Dimensionen der Summe werden hier exakt so addiert, wie das Modell sie addiert. Ihre Norm fehlt: Dafür bräuchte es alle {width} Dimensionen exakt, und der Trace enthält nur die ersten {shown}.",
+  "embed.tables":
+    "Die Token-Embedding-Tabelle hat {vocabulary} Zeilen mit je {width} Zahlen, eine pro Token; die Positions-Embedding-Tabelle hat {positions} Zeilen, eine pro Position, die das Modell lesen kann.",
+  "table.vector": "Vektor",
+  "table.firstDimensions": "Erste {n} Dimensionen",
+  "table.norm": "Norm",
   "table.rank": "Rang",
   "table.prediction": "Wahrscheinlichste Vorhersage",
   "table.probability": "Wahrscheinlichkeit",

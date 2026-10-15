@@ -30,7 +30,19 @@ export interface PositionRecord {
   token_id: number;
   token_text: string;
   token_bytes: string;
+  token_embedding: Embedding;
+  position_embedding: Embedding;
   predictions: TopTokens;
+}
+/**
+ * An n_embd-dimension embedding vector: all of it as int8 for drawing, its
+ * first dimensions exactly, and its norm.
+ */
+export interface Embedding {
+  values: string;
+  scale: number;
+  first_dimensions: string;
+  norm: number;
 }
 /**
  * The most likely next tokens, most likely first, with their probabilities in the same order.

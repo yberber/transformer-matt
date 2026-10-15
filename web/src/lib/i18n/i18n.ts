@@ -14,8 +14,13 @@ export const MESSAGES: Record<Lang, Record<MessageKey, string>> = { en, tr, de }
 type Params = Record<string, string | number>;
 type PluralKey = MessageKey extends infer K ? (K extends `${infer P}.other` ? P : never) : never;
 
+/** A number format in the reader's language, for formatting many numbers alike. */
+export function numberFormat(options?: Intl.NumberFormatOptions): Intl.NumberFormat {
+  return new Intl.NumberFormat(route.lang, options);
+}
+
 export function formatNumber(n: number, options?: Intl.NumberFormatOptions): string {
-  return new Intl.NumberFormat(route.lang, options).format(n);
+  return numberFormat(options).format(n);
 }
 
 /** A probability as a percentage with one decimal, in the reader's number format. */

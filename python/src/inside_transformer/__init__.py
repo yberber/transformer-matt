@@ -10,6 +10,7 @@ from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 from transformers.convert_slow_tokenizer import bytes_to_unicode
 
 from inside_transformer.trace import (
+    Embedding,
     ModelConfig,
     PositionRecord,
     Token,
@@ -21,6 +22,9 @@ from inside_transformer.trace import (
 MODEL_ID = "openai-community/gpt2"
 MODEL_REVISION = "607a30d783dfa663caf39e06633721c8d4cfcd7e"
 TOP_PREDICTIONS = 10
+# Embeddings carry this many leading dimensions exactly; the rest only as int8.
+EXACT_DIMENSIONS = 16
+INT8_MAX = 127
 
 __all__ = ["MODEL_ID", "MODEL_REVISION", "Trace", "build_trace"]
 
@@ -67,12 +71,27 @@ def _top_tokens(logits: torch.Tensor) -> TopTokens:
     )
 
 
-def _position(token_id: int, logits: torch.Tensor) -> PositionRecord:
+def _embedding(vector: torch.Tensor) -> Embedding:
+    """Quantizes the vector to int8 with one scale for the whole vector."""
+    scale = vector.abs().max() / INT8_MAX
+    values = (vector / scale).round() if scale > 0 else torch.zeros_like(vector)
+    return Embedding(
+        values=tuple(values.to(torch.int8).tolist()),
+        scale=scale.item(),
+        first_dimensions=tuple(vector[:EXACT_DIMENSIONS].tolist()),
+        norm=torch.linalg.vector_norm(vector).item(),
+    )
+
+
+def _position(position: int, token_id: int, logits: torch.Tensor) -> PositionRecord:
     token = _token(token_id)
+    transformer = _model().transformer
     return PositionRecord(
         token_id=token.token_id,
         token_text=token.token_text,
         token_bytes=token.token_bytes,
+        token_embedding=_embedding(transformer.wte.weight[token_id]),
+        position_embedding=_embedding(transformer.wpe.weight[position]),
         predictions=_top_tokens(logits),
     )
 
@@ -88,13 +107,16 @@ def build_trace(prompt: str, steps: int = 0) -> Trace:
     model = _model()
     with torch.no_grad():
         output = model(torch.tensor([prompt_ids]), use_cache=True)
-        positions = [_position(i, logits) for i, logits in zip(prompt_ids, output.logits[0])]
+        positions = [
+            _position(position, token_id, logits)
+            for position, (token_id, logits) in enumerate(zip(prompt_ids, output.logits[0]))
+        ]
         for _ in range(steps):
             next_id = positions[-1].predictions.tokens[0].token_id
             output = model(
                 torch.tensor([[next_id]]), past_key_values=output.past_key_values, use_cache=True
             )
-            positions.append(_position(next_id, output.logits[0, -1]))
+            positions.append(_position(len(positions), next_id, output.logits[0, -1]))
     return Trace(
         header=TraceHeader(model_id=MODEL_ID, model_revision=MODEL_REVISION, config=_config()),
         prompt_length=len(prompt_ids),

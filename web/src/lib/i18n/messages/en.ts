@@ -79,6 +79,28 @@ export const en = {
   "predict.greedy":
     "Decoding is greedy: the most likely token is always the one appended, so the same Prompt always gives the same Continuation.",
   "predict.detailsNote": "Probabilities are over all {vocabulary} tokens; the top 10 add up to {sum}.",
+  "embed.listLabel": "Embeddings per Position",
+  "embed.added":
+    "The token embedding and the position embedding are added number by number, and their sum is what enters the first block.",
+  "embed.legend":
+    "Each strip is one vector, its {width} numbers from left to right. Positive numbers are drawn in the token's color and negative ones in gray, stronger the further they are from 0.",
+  "embed.scaleLow": "{value} or less",
+  "embed.scaleHigh": "{value} or more",
+  "embed.token": "Token embedding",
+  "embed.position": "Position embedding",
+  "embed.sum": "Sum, into block 1",
+  "embed.tokenStrip": "Token embedding at Position {n}",
+  "embed.positionStrip": "Position embedding at Position {n}",
+  "embed.sumStrip": "Sum at Position {n}, which enters the first block",
+  "embed.truncated":
+    "Truncated view: the first {shown} of {width} dimensions of each vector. The norm, the vector's length, is over all {width}.",
+  "embed.sumNote":
+    "The sum's first {shown} dimensions are added here exactly as the model adds them. Its norm is left out: that needs all {width} dimensions exactly, and the Trace carries only the first {shown}.",
+  "embed.tables":
+    "The token embedding table has {vocabulary} rows of {width} numbers, one per token; the position embedding table has {positions} rows, one per Position the model can read.",
+  "table.vector": "Vector",
+  "table.firstDimensions": "First {n} dimensions",
+  "table.norm": "Norm",
   "table.rank": "Rank",
   "table.prediction": "Top prediction",
   "table.probability": "Probability",

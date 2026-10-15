@@ -40,3 +40,15 @@ export function onSystemThemeChange(callback: () => void): () => void {
   systemDark.addEventListener("change", callback);
   return () => systemDark.removeEventListener("change", callback);
 }
+
+/** Calls back whenever the colors in use may have changed: the user picked a theme,
+ * or the system setting changed. Returns the unsubscribe function. */
+export function onThemeChange(callback: () => void): () => void {
+  const themePicks = new MutationObserver(callback);
+  themePicks.observe(document.documentElement, { attributeFilter: ["data-theme"] });
+  const stopSystem = onSystemThemeChange(callback);
+  return () => {
+    themePicks.disconnect();
+    stopSystem();
+  };
+}

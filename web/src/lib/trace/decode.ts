@@ -14,7 +14,21 @@ export interface Prediction extends Token {
   probability: number;
 }
 
+/** An embedding vector. */
+export interface Embedding {
+  /** Every dimension, to within half a step of the vector's int8 scale: enough to draw, not to read off. */
+  values: Float32Array;
+  /** The first few dimensions, exactly (float32). */
+  firstDimensions: number[];
+  /** The Euclidean norm of the whole vector, exactly (float32). */
+  norm: number;
+}
+
 export interface PositionRecord extends Token {
+  /** The token's row of the token embedding table. */
+  tokenEmbedding: Embedding;
+  /** This Position's row of the position embedding table. */
+  positionEmbedding: Embedding;
   /** The top-10 next-token predictions made at this Position, most likely first. */
   predictions: Prediction[];
 }
@@ -36,6 +50,16 @@ function float32s(encoded: string): number[] {
   return Array.from({ length: bytes.byteLength / 4 }, (_, i) => view.getFloat32(i * 4, true));
 }
 
+function decodeEmbedding(wire: Wire.Embedding): Embedding {
+  const bytes = fromBase64(wire.values);
+  const int8s = new Int8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  return {
+    values: Float32Array.from(int8s, (value) => value * wire.scale),
+    firstDimensions: float32s(wire.first_dimensions),
+    norm: wire.norm,
+  };
+}
+
 function decodeToken(wire: Wire.Token): Token {
   return { tokenId: wire.token_id, tokenText: wire.token_text, tokenBytes: fromBase64(wire.token_bytes) };
 }
@@ -51,6 +75,8 @@ export function decodeTrace(wire: Wire.Trace): Trace {
     promptLength: wire.prompt_length,
     positions: wire.positions.map((record) => ({
       ...decodeToken(record),
+      tokenEmbedding: decodeEmbedding(record.token_embedding),
+      positionEmbedding: decodeEmbedding(record.position_embedding),
       predictions: decodePredictions(record.predictions),
     })),
   };

@@ -78,6 +78,28 @@ export const tr: Record<MessageKey, string> = {
   "predict.greedy":
     "Kod çözme açgözlüdür (greedy): her zaman en olası token eklenir, bu yüzden aynı Prompt her zaman aynı devam metnini verir.",
   "predict.detailsNote": "Olasılıklar {vocabulary} token'ın tümü üzerindendir; ilk 10'un toplamı {sum}.",
+  "embed.listLabel": "Konum başına embedding'ler",
+  "embed.added":
+    "Token embedding'i ile konum embedding'i sayı sayı toplanır; ilk bloğa giren, bu toplamdır.",
+  "embed.legend":
+    "Her şerit bir vektördür: {width} sayı soldan sağa dizilir. Pozitif sayılar token'ın renginde, negatif sayılar griyle çizilir; sayı 0'dan ne kadar uzaksa renk o kadar güçlüdür.",
+  "embed.scaleLow": "{value} veya daha az",
+  "embed.scaleHigh": "{value} veya daha fazla",
+  "embed.token": "Token embedding'i",
+  "embed.position": "Konum embedding'i",
+  "embed.sum": "Toplam, 1. bloğa girer",
+  "embed.tokenStrip": "{n}. konumdaki token embedding'i",
+  "embed.positionStrip": "{n}. konumdaki konum embedding'i",
+  "embed.sumStrip": "{n}. konumdaki toplam; ilk bloğa bu girer",
+  "embed.truncated":
+    "Kısaltılmış görünüm: her vektörün {width} boyutundan ilk {shown} tanesi. Norm, yani vektörün uzunluğu, {width} boyutun tümü üzerindendir.",
+  "embed.sumNote":
+    "Toplamın ilk {shown} boyutu burada, modelin topladığı gibi kesin olarak toplanır. Normu gösterilmez: bunun için {width} boyutun tümü kesin olarak gerekir, Trace ise yalnızca ilk {shown} boyutu taşır.",
+  "embed.tables":
+    "Token embedding tablosunda her token için bir satır olmak üzere {width} sayılık {vocabulary} satır vardır; konum embedding tablosunda ise modelin okuyabildiği her konum için bir satır olmak üzere {positions} satır vardır.",
+  "table.vector": "Vektör",
+  "table.firstDimensions": "İlk {n} boyut",
+  "table.norm": "Norm",
   "table.rank": "Sıra",
   "table.prediction": "En olası tahmin",
   "table.probability": "Olasılık",

@@ -21,6 +21,13 @@ STEPS = 16
 # from macOS arm64, CI runs Linux x86_64), so floats are compared within the
 # spec's verification tolerances, never bit for bit.
 PROBABILITY_TOLERANCE = 1e-4
+EMBEDDING_TOLERANCE = 1e-6
+# Not a spec tolerance, for norms and int8 scales: a norm sums 768 squares, whose
+# rounding depends on the CPU, and a scale is a maximum divided by 127.
+RELATIVE_TOLERANCE = 1e-5
+N_EMBD = 768
+INT8_MAX = 127
+EXACT_DIMENSIONS = 16
 
 # The spec's selection rules, restated. The margin was lowered from 0.05 to 1e-3 so
 # that natural prose can qualify (2026-10-15); 1e-3 still keeps every greedy choice
@@ -74,6 +81,11 @@ def float32s(encoded: str) -> list[float]:
     return list(struct.unpack(f"<{len(raw) // 4}f", raw))
 
 
+def int8s(encoded: str) -> list[int]:
+    raw = base64.b64decode(encoded, validate=True)
+    return list(struct.unpack(f"<{len(raw)}b", raw))
+
+
 def assert_same_top_tokens(actual_ids, actual_probabilities, expected_ids, expected_probabilities, probability_of):
     """The actual top tokens match the expected ones up to ties.
 
@@ -99,6 +111,20 @@ def assert_same_top_tokens(actual_ids, actual_probabilities, expected_ids, expec
         )
 
 
+def assert_same_embedding(actual: dict, expected: dict) -> None:
+    """Two embeddings agree within the verification tolerances; an int8 value may
+    land one step away when its float sits on a rounding boundary."""
+    assert actual.keys() == expected.keys() == {"values", "scale", "first_dimensions", "norm"}
+    actual_values, expected_values = int8s(actual["values"]), int8s(expected["values"])
+    assert len(actual_values) == len(expected_values)
+    assert all(abs(a - e) <= 1 for a, e in zip(actual_values, expected_values))
+    assert actual["scale"] == pytest.approx(expected["scale"], rel=RELATIVE_TOLERANCE)
+    assert float32s(actual["first_dimensions"]) == pytest.approx(
+        float32s(expected["first_dimensions"]), abs=EMBEDDING_TOLERANCE
+    )
+    assert actual["norm"] == pytest.approx(expected["norm"], rel=RELATIVE_TOLERANCE)
+
+
 def assert_same_trace(actual: dict, expected: dict) -> None:
     """Two Traces agree: everything exact except floats, which match within the
     verification tolerances, and the order of near-tied predictions."""
@@ -107,10 +133,12 @@ def assert_same_trace(actual: dict, expected: dict) -> None:
     assert len(actual["positions"]) == len(expected["positions"])
     for actual_position, expected_position in zip(actual["positions"], expected["positions"]):
         assert actual_position.keys() == expected_position.keys() == {
-            "token_id", "token_text", "token_bytes", "predictions"
+            "token_id", "token_text", "token_bytes", "token_embedding", "position_embedding", "predictions"
         }
         for field in ("token_id", "token_text", "token_bytes"):
             assert actual_position[field] == expected_position[field]
+        for field in ("token_embedding", "position_embedding"):
+            assert_same_embedding(actual_position[field], expected_position[field])
 
         actual_tokens = actual_position["predictions"]["tokens"]
         expected_tokens = expected_position["predictions"]["tokens"]
@@ -182,6 +210,68 @@ def test_each_position_carries_the_top_10_next_token_predictions(example, refere
         assert [t["token_text"] for t in predictions["tokens"]] == [
             reference_tokenizer.decode([i]) for i in ids
         ]
+
+
+@pytest.fixture(scope="module")
+def reference_embeddings(reference_run, reference_model):
+    """Each Example's token embeddings, looked up through the model's input
+    embedding layer, and what enters the first block (`hidden_states[0]`); the
+    position embeddings are the difference."""
+    embeddings = {}
+
+    def run(example):
+        if example.id not in embeddings:
+            token_ids = torch.tensor([reference_run(example)["token_ids"]])
+            with torch.no_grad():
+                token = reference_model.get_input_embeddings()(token_ids)[0]
+                block_input = reference_model(token_ids, output_hidden_states=True).hidden_states[0][0]
+            embeddings[example.id] = {"token": token, "position": block_input - token, "sum": block_input}
+        return embeddings[example.id]
+
+    return run
+
+
+@pytest.mark.parametrize("example", EXAMPLES, ids=lambda e: e.id)
+def test_the_first_16_embedding_dimensions_match_a_hugging_face_run(example, reference_embeddings):
+    expected = reference_embeddings(example)
+    positions = read_example(example.id)["positions"]
+    assert len(positions) == len(expected["token"])
+
+    for i, position in enumerate(positions):
+        for kind in ("token", "position"):
+            first = float32s(position[f"{kind}_embedding"]["first_dimensions"])
+            assert first == pytest.approx(expected[kind][i, :EXACT_DIMENSIONS].tolist(), abs=EMBEDDING_TOLERANCE), (
+                f"{kind} embedding at Position {i}"
+            )
+
+
+@pytest.mark.parametrize("example", EXAMPLES, ids=lambda e: e.id)
+def test_embedding_strips_and_norms_match_a_hugging_face_run(example, reference_embeddings):
+    expected = reference_embeddings(example)
+    positions = read_example(example.id)["positions"]
+
+    for i, position in enumerate(positions):
+        for kind in ("token", "position"):
+            embedding = position[f"{kind}_embedding"]
+            vector = expected[kind][i]
+            values, scale = int8s(embedding["values"]), embedding["scale"]
+            # The whole vector, to half a step of its own int8 scale, which spans the full int8 range.
+            assert len(values) == N_EMBD
+            assert max(abs(v) for v in values) == INT8_MAX
+            assert scale == pytest.approx(float(vector.abs().max()) / INT8_MAX, rel=RELATIVE_TOLERANCE)
+            assert [v * scale for v in values] == pytest.approx(vector.tolist(), abs=scale / 2 + EMBEDDING_TOLERANCE)
+            assert embedding["norm"] == pytest.approx(float(vector.norm()), rel=RELATIVE_TOLERANCE)
+
+
+@pytest.mark.parametrize("example", EXAMPLES, ids=lambda e: e.id)
+def test_token_and_position_embeddings_add_up_to_the_first_blocks_input(example, reference_embeddings):
+    expected = reference_embeddings(example)["sum"]
+    for i, position in enumerate(read_example(example.id)["positions"]):
+        token = float32s(position["token_embedding"]["first_dimensions"])
+        at_position = float32s(position["position_embedding"]["first_dimensions"])
+        assert [a + b for a, b in zip(token, at_position)] == pytest.approx(
+            expected[i, :EXACT_DIMENSIONS].tolist(), abs=EMBEDDING_TOLERANCE
+        )
 
 
 def test_there_are_two_examples_in_each_length_band():

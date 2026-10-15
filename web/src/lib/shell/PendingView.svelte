@@ -7,7 +7,7 @@
   import type { Trace } from "../trace/decode";
   import ViewFrame from "./ViewFrame.svelte";
 
-  let { view, trace }: { view: Exclude<View, "tokenize" | "predict">; trace: Trace } = $props();
+  let { view, trace }: { view: Exclude<View, "tokenize" | "embed" | "predict">; trace: Trace } = $props();
 
   const { header } = $derived(trace);
   const config = $derived(header.config);
@@ -17,8 +17,6 @@
   const row = (name: ConfigName): Row => ({ name, label: `config.${name}`, value: config[name] });
   const rows = $derived.by((): Row[] => {
     switch (view) {
-      case "embed":
-        return [row("vocab_size"), row("n_embd"), row("n_positions")];
       case "blocks":
         return [
           row("n_layer"),

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { route } from "./lib/app/route.svelte";
+  import EmbeddingsView from "./lib/embed/EmbeddingsView.svelte";
   import { t } from "./lib/i18n/i18n";
   import Masthead from "./lib/shell/Masthead.svelte";
   import PendingView from "./lib/shell/PendingView.svelte";
@@ -48,6 +49,8 @@
       <p role="status">{t("view.loading")}</p>
     {:else if route.view === "tokenize"}
       <TokenizationView trace={shown} />
+    {:else if route.view === "embed"}
+      <EmbeddingsView trace={shown} />
     {:else if route.view === "predict"}
       <PredictionView trace={shown} canAdvance={route.step < stepCount(trace!)} />
     {:else}
