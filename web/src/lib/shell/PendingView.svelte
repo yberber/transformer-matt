@@ -1,13 +1,15 @@
 <script lang="ts">
-  // A stage whose view is not built yet: its one-sentence explanation, and the
-  // model config numbers that stage depends on behind "Show details".
+  // A stage whose view is not built yet: its one-sentence explanation, a way on to
+  // the views it opens up, and the model config numbers that stage depends on
+  // behind "Show details".
+  import { navigate, route, routeUrl } from "../app/route.svelte";
   import type { View } from "../app/viewState";
   import Message from "../i18n/Message.svelte";
   import { formatNumber, t, type MessageKey } from "../i18n/i18n";
   import type { Trace } from "../trace/decode";
   import ViewFrame from "./ViewFrame.svelte";
 
-  let { view, trace }: { view: Exclude<View, "tokenize" | "embed" | "predict">; trace: Trace } = $props();
+  let { view, trace }: { view: Exclude<View, "tokenize" | "embed" | "predict" | "attention">; trace: Trace } = $props();
 
   const { header } = $derived(trace);
   const config = $derived(header.config);
@@ -37,6 +39,17 @@
   {/snippet}
 
   <p class="pending">{t("view.pending")}</p>
+  {#if view === "blocks"}
+    <p>
+      <a
+        href={routeUrl({ ...route, view: "attention" })}
+        onclick={(event) => {
+          event.preventDefault();
+          navigate({ view: "attention" });
+        }}>{t("blocks.attentionLink")}</a
+      >
+    </p>
+  {/if}
 
   {#snippet details()}
     <dl>

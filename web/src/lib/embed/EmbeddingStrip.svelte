@@ -7,7 +7,7 @@
   // One embedding vector as a strip, one cell per dimension, left to right: positive
   // values in the Position's color, negative ones in gray, more opaque the further
   // they are from 0. Canvas, because a long Example draws close to 200 strips.
-  import { onThemeChange } from "../shell/theme";
+  import { cssRgb, onThemeChange } from "../shell/theme";
   import { positionColor } from "../tokens/color";
 
   let { values, position, label }: { values: Float32Array; position: number; label: string } = $props();
@@ -26,14 +26,8 @@
   function draw(values: Float32Array) {
     const context = canvas.getContext("2d");
     if (!context) return;
-    // The canvas resolves any CSS color to #rrggbb.
-    const rgb = (property: string) => {
-      context.fillStyle = getComputedStyle(canvas).getPropertyValue(property).trim();
-      const hex = String(context.fillStyle);
-      return [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
-    };
-    const positive = rgb("--token-color");
-    const negative = rgb("--ink-secondary");
+    const positive = cssRgb(context, canvas, "--token-color");
+    const negative = cssRgb(context, canvas, "--ink-secondary");
     const image = context.createImageData(values.length, 1);
     values.forEach((value, i) => {
       const alpha = Math.round(Math.min(1, Math.abs(value) / SATURATION) * 255);

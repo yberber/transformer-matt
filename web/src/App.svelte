@@ -1,5 +1,6 @@
 <script lang="ts">
   import { route } from "./lib/app/route.svelte";
+  import AttentionView from "./lib/attention/AttentionView.svelte";
   import EmbeddingsView from "./lib/embed/EmbeddingsView.svelte";
   import { t } from "./lib/i18n/i18n";
   import Masthead from "./lib/shell/Masthead.svelte";
@@ -51,6 +52,8 @@
       <TokenizationView trace={shown} />
     {:else if route.view === "embed"}
       <EmbeddingsView trace={shown} />
+    {:else if route.view === "attention"}
+      <AttentionView trace={shown} />
     {:else if route.view === "predict"}
       <PredictionView trace={shown} canAdvance={route.step < stepCount(trace!)} />
     {:else}

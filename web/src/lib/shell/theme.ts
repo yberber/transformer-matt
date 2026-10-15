@@ -52,3 +52,11 @@ export function onThemeChange(callback: () => void): () => void {
     stopSystem();
   };
 }
+
+/** A CSS color property of the element as [r, g, b], for drawing on a canvas, whose
+ * colors do not follow CSS. The context resolves any CSS color to #rrggbb. */
+export function cssRgb(context: CanvasRenderingContext2D, element: Element, property: string): number[] {
+  context.fillStyle = getComputedStyle(element).getPropertyValue(property).trim();
+  const hex = String(context.fillStyle);
+  return [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+}

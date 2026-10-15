@@ -25,6 +25,8 @@ TOP_PREDICTIONS = 10
 # Embeddings carry this many leading dimensions exactly; the rest only as int8.
 EXACT_DIMENSIONS = 16
 INT8_MAX = 127
+# Attention weights travel as round(weight × 255).
+ATTENTION_STEPS = 255
 
 __all__ = ["MODEL_ID", "MODEL_REVISION", "Trace", "build_trace"]
 
@@ -36,7 +38,10 @@ def _tokenizer():
 
 @cache
 def _model():
-    model = AutoModelForCausalLM.from_pretrained(MODEL_ID, revision=MODEL_REVISION, dtype=torch.float32)
+    # Eager attention, because the default SDPA kernel does not return attention weights.
+    model = AutoModelForCausalLM.from_pretrained(
+        MODEL_ID, revision=MODEL_REVISION, dtype=torch.float32, attn_implementation="eager"
+    )
     return model.eval()
 
 
@@ -83,7 +88,12 @@ def _embedding(vector: torch.Tensor) -> Embedding:
     )
 
 
-def _position(position: int, token_id: int, logits: torch.Tensor) -> PositionRecord:
+def _attention(rows: torch.Tensor) -> tuple[int, ...]:
+    """Quantizes one Position's attention rows, [layer, head, key Position], to uint8."""
+    return tuple((rows * ATTENTION_STEPS).round().to(torch.uint8).flatten().tolist())
+
+
+def _position(position: int, token_id: int, attention: torch.Tensor, logits: torch.Tensor) -> PositionRecord:
     token = _token(token_id)
     transformer = _model().transformer
     return PositionRecord(
@@ -92,6 +102,7 @@ def _position(position: int, token_id: int, logits: torch.Tensor) -> PositionRec
         token_bytes=token.token_bytes,
         token_embedding=_embedding(transformer.wte.weight[token_id]),
         position_embedding=_embedding(transformer.wpe.weight[position]),
+        attention=_attention(attention),
         predictions=_top_tokens(logits),
     )
 
@@ -106,17 +117,23 @@ def build_trace(prompt: str, steps: int = 0) -> Trace:
     prompt_ids = _tokenizer()(prompt)["input_ids"]
     model = _model()
     with torch.no_grad():
-        output = model(torch.tensor([prompt_ids]), use_cache=True)
+        output = model(torch.tensor([prompt_ids]), use_cache=True, output_attentions=True)
+        # [layer, head, query Position, key Position]
+        attention = torch.stack([layer[0] for layer in output.attentions])
         positions = [
-            _position(position, token_id, logits)
+            _position(position, token_id, attention[:, :, position, : position + 1], logits)
             for position, (token_id, logits) in enumerate(zip(prompt_ids, output.logits[0]))
         ]
         for _ in range(steps):
             next_id = positions[-1].predictions.tokens[0].token_id
             output = model(
-                torch.tensor([[next_id]]), past_key_values=output.past_key_values, use_cache=True
+                torch.tensor([[next_id]]),
+                past_key_values=output.past_key_values,
+                use_cache=True,
+                output_attentions=True,
             )
-            positions.append(_position(len(positions), next_id, output.logits[0, -1]))
+            attention = torch.stack([layer[0, :, 0] for layer in output.attentions])
+            positions.append(_position(len(positions), next_id, attention, output.logits[0, -1]))
     return Trace(
         header=TraceHeader(model_id=MODEL_ID, model_revision=MODEL_REVISION, config=_config()),
         prompt_length=len(prompt_ids),

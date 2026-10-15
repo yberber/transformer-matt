@@ -96,6 +96,13 @@
         "position_embedding": {
           "$ref": "#/$defs/Embedding"
         },
+        "attention": {
+          "contentEncoding": "base64",
+          "contentMediaType": "application/x-uint8",
+          "pattern": "^[A-Za-z0-9+/]*={0,2}$",
+          "title": "Attention",
+          "type": "string"
+        },
         "predictions": {
           "$ref": "#/$defs/TopTokens"
         }
@@ -106,6 +113,7 @@
         "token_bytes",
         "token_embedding",
         "position_embedding",
+        "attention",
         "predictions"
       ],
       "title": "PositionRecord",

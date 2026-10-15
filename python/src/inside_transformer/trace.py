@@ -70,31 +70,38 @@ Float32Array = Annotated[
 ]
 
 
-def _decode_int8s(value: object) -> tuple[int, ...]:
-    if isinstance(value, (list, tuple)):
-        return tuple(int(v) for v in value)
-    raw = _decode_base64(value)
-    return struct.unpack(f"<{len(raw)}b", raw)
+def _byte_array(code: str, media_type: str):
+    """A typed array of one-byte values, struct format `code` ("b" signed, "B"
+    unsigned), base64-encoded."""
+
+    def decode(value: object) -> tuple[int, ...]:
+        if isinstance(value, (list, tuple)):
+            return tuple(int(v) for v in value)
+        raw = _decode_base64(value)
+        return struct.unpack(f"<{len(raw)}{code}", raw)
+
+    def encode(values: tuple[int, ...]) -> str:
+        return base64.b64encode(struct.pack(f"<{len(values)}{code}", *values)).decode("ascii")
+
+    return Annotated[
+        tuple[int, ...],
+        PlainValidator(decode),
+        PlainSerializer(encode, return_type=str),
+        WithJsonSchema(
+            {
+                "type": "string",
+                "contentEncoding": "base64",
+                "contentMediaType": media_type,
+                "pattern": "^[A-Za-z0-9+/]*={0,2}$",
+            }
+        ),
+    ]
 
 
-def _encode_int8s(values: tuple[int, ...]) -> str:
-    return base64.b64encode(struct.pack(f"<{len(values)}b", *values)).decode("ascii")
-
-
-# An int8 typed array: one signed byte per value, base64-encoded.
-Int8Array = Annotated[
-    tuple[int, ...],
-    PlainValidator(_decode_int8s),
-    PlainSerializer(_encode_int8s, return_type=str),
-    WithJsonSchema(
-        {
-            "type": "string",
-            "contentEncoding": "base64",
-            "contentMediaType": "application/x-int8",
-            "pattern": "^[A-Za-z0-9+/]*={0,2}$",
-        }
-    ),
-]
+# One signed byte per value.
+Int8Array = _byte_array("b", "application/x-int8")
+# One unsigned byte per value.
+UInt8Array = _byte_array("B", "application/x-uint8")
 
 
 def _to_float32(value: object) -> float:
@@ -185,6 +192,10 @@ class PositionRecord(_Contract):
     # position embedding table; their sum is what enters the first block.
     token_embedding: Embedding
     position_embedding: Embedding
+    # This Position's attention row in every head: layer by layer, head by head, the
+    # weight it gives each Position from 0 to itself, as round(weight × 255). Attention
+    # is causal, so the row never changes once later tokens arrive.
+    attention: UInt8Array
     # The top-10 next-token predictions made at this Position.
     predictions: TopTokens
 
@@ -196,3 +207,11 @@ class Trace(_Contract):
     # The Prompt is the first prompt_length Positions; the Continuation follows, one Position per Step.
     prompt_length: int
     positions: list[PositionRecord]
+
+    @model_validator(mode="after")
+    def _one_attention_row_per_head(self) -> "Trace":
+        heads = self.header.config.n_layer * self.header.config.n_head
+        for i, position in enumerate(self.positions):
+            if len(position.attention) != heads * (i + 1):
+                raise ValueError(f"expected {heads} attention rows of {i + 1} weights at Position {i}")
+        return self

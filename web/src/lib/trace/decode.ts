@@ -24,11 +24,19 @@ export interface Embedding {
   norm: number;
 }
 
+/** Attention weights travel as round(weight × 255), so each is within 1/510 of the model's own. */
+export const ATTENTION_STEPS = 255;
+
 export interface PositionRecord extends Token {
   /** The token's row of the token embedding table. */
   tokenEmbedding: Embedding;
   /** This Position's row of the position embedding table. */
   positionEmbedding: Embedding;
+  /**
+   * This Position's attention rows, `attention[layer][head][key]`: the weight it gives
+   * each Position `key` from 0 to itself, a multiple of 1/ATTENTION_STEPS.
+   */
+  attention: Float32Array[][];
   /** The top-10 next-token predictions made at this Position, most likely first. */
   predictions: Prediction[];
 }
@@ -60,6 +68,17 @@ function decodeEmbedding(wire: Wire.Embedding): Embedding {
   };
 }
 
+function decodeAttention(encoded: string, position: number, { n_layer, n_head }: Wire.ModelConfig): Float32Array[][] {
+  const weights = Float32Array.from(fromBase64(encoded), (value) => value / ATTENTION_STEPS);
+  const length = position + 1;
+  return Array.from({ length: n_layer }, (_, layer) =>
+    Array.from({ length: n_head }, (_, head) => {
+      const start = (layer * n_head + head) * length;
+      return weights.subarray(start, start + length);
+    }),
+  );
+}
+
 function decodeToken(wire: Wire.Token): Token {
   return { tokenId: wire.token_id, tokenText: wire.token_text, tokenBytes: fromBase64(wire.token_bytes) };
 }
@@ -73,10 +92,11 @@ export function decodeTrace(wire: Wire.Trace): Trace {
   return {
     header: wire.header,
     promptLength: wire.prompt_length,
-    positions: wire.positions.map((record) => ({
+    positions: wire.positions.map((record, position) => ({
       ...decodeToken(record),
       tokenEmbedding: decodeEmbedding(record.token_embedding),
       positionEmbedding: decodeEmbedding(record.position_embedding),
+      attention: decodeAttention(record.attention, position, wire.header.config),
       predictions: decodePredictions(record.predictions),
     })),
   };

@@ -1,17 +1,17 @@
 <script lang="ts">
-  // Every view's frame, a specimen card: a catalogue label (number, stage, Step), the one-sentence
+  // Every view's frame, a specimen card: a catalogue label (its stage's number, the view, Step), the one-sentence
   // plain-language explanation first, then the view, then the exact numbers
   // behind "Show details".
   import type { Snippet } from "svelte";
   import { route } from "../app/route.svelte";
-  import { VIEWS, type View } from "../app/viewState";
+  import { STAGES, stageOf, type View } from "../app/viewState";
   import { t } from "../i18n/i18n";
   import { EXAMPLE_STEPS } from "../trace/examples";
 
   let { view, lead, children, details }: { view: View; lead: Snippet; children?: Snippet; details: Snippet } =
     $props();
 
-  const number = $derived(String(VIEWS.indexOf(view) + 1).padStart(2, "0"));
+  const number = $derived(String(STAGES.indexOf(stageOf(view)) + 1).padStart(2, "0"));
 </script>
 
 <section class="specimen" aria-labelledby="view-heading">

@@ -3,8 +3,21 @@
 // browser's, with English as fallback.
 import { DEFAULT_EXAMPLE, EXAMPLE_IDS, EXAMPLE_STEPS, type ExampleId } from "../trace/examples";
 
-export const VIEWS = ["tokenize", "embed", "blocks", "predict"] as const;
+/** The pipeline's stages, in order: the stations of the pipeline strip. */
+export const STAGES = ["tokenize", "embed", "blocks", "predict"] as const;
+export type Stage = (typeof STAGES)[number];
+
+/** Every view: the stages, plus attention, which opens up one layer and head of Blocks. */
+export const VIEWS = [...STAGES, "attention"] as const;
 export type View = (typeof VIEWS)[number];
+
+export function stageOf(view: View): Stage {
+  return view === "attention" ? "blocks" : view;
+}
+
+/** GPT-2 small's n_layer and n_head, as every Trace header gives them. */
+export const LAYERS = 12;
+export const HEADS = 12;
 
 export const LANGS = ["en", "tr", "de"] as const;
 export type Lang = (typeof LANGS)[number];
@@ -12,6 +25,10 @@ export type Lang = (typeof LANGS)[number];
 export interface ViewState {
   example: ExampleId;
   view: View;
+  /** Counted from 1, as the UI shows it. */
+  layer: number;
+  /** Counted from 1 within the layer, as the UI shows it. */
+  head: number;
   /** 0 is the Prompt alone. */
   step: number;
   lang: Lang;
@@ -21,10 +38,10 @@ function pick<T extends string>(options: readonly T[], value: string | null | un
   return options.find((option) => option === value);
 }
 
-function pickStep(value: string | null): number | undefined {
+function pickNumber(value: string | null, min: number, max: number): number | undefined {
   if (!value || !/^\d+$/.test(value)) return undefined;
-  const step = Number(value);
-  return step <= EXAMPLE_STEPS ? step : undefined;
+  const n = Number(value);
+  return n >= min && n <= max ? n : undefined;
 }
 
 function browserLang(languages: readonly string[]): Lang {
@@ -40,11 +57,20 @@ export function readViewState(search: string, languages: readonly string[]): Vie
   return {
     example: pick(EXAMPLE_IDS, params.get("example")) ?? DEFAULT_EXAMPLE,
     view: pick(VIEWS, params.get("view")) ?? "tokenize",
-    step: pickStep(params.get("step")) ?? 0,
+    layer: pickNumber(params.get("layer"), 1, LAYERS) ?? 1,
+    head: pickNumber(params.get("head"), 1, HEADS) ?? 1,
+    step: pickNumber(params.get("step"), 0, EXAMPLE_STEPS) ?? 0,
     lang: pick(LANGS, params.get("lang")) ?? browserLang(languages),
   };
 }
 
-export function viewStateQuery({ example, view, step, lang }: ViewState): string {
-  return new URLSearchParams({ example, view, step: String(step), lang }).toString();
+export function viewStateQuery({ example, view, layer, head, step, lang }: ViewState): string {
+  return new URLSearchParams({
+    example,
+    view,
+    layer: String(layer),
+    head: String(head),
+    step: String(step),
+    lang,
+  }).toString();
 }

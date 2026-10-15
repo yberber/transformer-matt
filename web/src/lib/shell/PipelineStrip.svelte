@@ -4,7 +4,7 @@
   // the navigation; the beads in the tube are decorative (the views' token chips
   // carry the text).
   import { navigate, route } from "../app/route.svelte";
-  import { VIEWS, type View } from "../app/viewState";
+  import { STAGES, stageOf, type Stage } from "../app/viewState";
   import { formatNumber, t, tPlural } from "../i18n/i18n";
   import { positionColor } from "../tokens/color";
   import type { Trace } from "../trace/decode";
@@ -15,7 +15,7 @@
   const predictions = $derived(trace?.positions.at(-1)?.predictions ?? []);
   const config = $derived(trace?.header.config);
 
-  function spec(view: View): string {
+  function spec(view: Stage): string {
     if (!config) return "";
     switch (view) {
       case "tokenize":
@@ -33,12 +33,12 @@
 <nav class="apparatus" aria-label={t("pipeline.label")}>
   <div class="rig">
     <span class="port" aria-hidden="true">{t("pipeline.inlet")}</span>
-    {#each VIEWS as view, i (view)}
+    {#each STAGES as view, i (view)}
       <button
         type="button"
         class="station"
         class:blocks={view === "blocks"}
-        aria-current={route.view === view ? "step" : undefined}
+        aria-current={stageOf(route.view) === view ? "step" : undefined}
         onclick={() => navigate({ view })}
       >
         <span class="name"
@@ -61,7 +61,7 @@
         {/if}
         <span class="spec">{spec(view)}</span>
       </button>
-      {#if i < VIEWS.length - 1}
+      {#if i < STAGES.length - 1}
         <span class="tube" aria-hidden="true">
           {#each { length: positionCount }, position (position)}<span class="bead" style:--token-color={positionColor(position)}></span>{/each}
         </span>

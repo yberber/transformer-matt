@@ -36,6 +36,7 @@ export const en = {
   "stage.embed": "Embed",
   "stage.blocks": "Blocks",
   "stage.predict": "Predict",
+  "stage.attention": "Attention",
   "stage.spec.tokens.one": "{n} token",
   "stage.spec.tokens.other": "{n} tokens",
   "stage.spec.layers": "{n} layers",
@@ -61,6 +62,8 @@ export const en = {
     "The numbers pass through {layers} identical [[layer|layers]]: in each one, [[attention|attention]] lets every token gather information from earlier tokens, then a small network reworks each token on its own.",
   "view.predict.lead":
     "At the last Position the model gives each of its {vocabulary} tokens a probability, and greedy decoding always appends the most likely one.",
+  "view.attention.lead":
+    "In every [[layer|layer]], [[attention|attention]] lets each token look back at the tokens before it and at itself, and each of the layer's {heads} heads decides on its own how much to look at which token.",
 
   "tokens.listLabel": "Tokens",
   "tokens.prompt": "Prompt",
@@ -79,6 +82,33 @@ export const en = {
   "predict.greedy":
     "Decoding is greedy: the most likely token is always the one appended, so the same Prompt always gives the same Continuation.",
   "predict.detailsNote": "Probabilities are over all {vocabulary} tokens; the top 10 add up to {sum}.",
+  "blocks.attentionLink": "See what each token looks at in the attention heatmap",
+  "attention.layer": "Layer",
+  "attention.head": "Head",
+  "attention.shortcut": "Press [ and ] to switch head.",
+  "attention.heatmapLabel": "Attention heatmap, layer {layer}, head {head}",
+  "attention.hint":
+    "Each row is a token looking back, each column a token it can look at, and the stronger a cell's color, the more attention. Focus the heatmap and use the arrow keys to move between cells.",
+  "attention.rows": "looking",
+  "attention.columns": "looked at",
+  "attention.masked": "Cells above the diagonal stay empty: a token can never look at tokens that come after it.",
+  "attention.scale": "Share of the row's attention",
+  "attention.cell": "{query} (Position {from}) → {key} (Position {to}): {weight}",
+  "attention.announceHead": "Layer {layer}, head {head}.",
+  "attention.query": "Query token",
+  "attention.queryOption": "Position {n}: {token}",
+  "attention.rankedLabel": "Where {query} (Position {n}) looks",
+  "attention.rest": "{n} other tokens",
+  "attention.overview": "Overview of the whole heatmap, with the row of Position {n} marked",
+  "attention.sinkTitle": "Why so much attention goes to the first token",
+  "attention.sink":
+    "A token's attention always adds up to 100%, so a head that finds nothing useful to look at still has to put it somewhere. Many heads park it on the first token, which every token can see. This is called an attention sink, and it is not a bug. GPT-2 learned it on texts that begin with a special separator token; like a default Hugging Face run, this site does not add one, so the Prompt's first token takes that role.",
+  "attention.sinkShare": "In this head, the tokens after the first give it {share} of their attention on average.",
+  "attention.exactCaption": "Exact weights from {query} (Position {n}) in layer {layer}, head {head}",
+  "attention.precision":
+    "Each weight is stored to the nearest 1/255, so it is within 0.002 of the model's own value, and a row adds up to 1 only approximately. Choose another row in the heatmap, or with the query token chooser on a phone.",
+  "attention.heads":
+    "Each of a layer's {heads} heads works with {headWidth} of each token's {width} numbers; {layers} layers make {total} heads in all.",
   "embed.listLabel": "Embeddings per Position",
   "embed.added":
     "The token embedding and the position embedding are added number by number, and their sum is what enters the first block.",
@@ -98,6 +128,7 @@ export const en = {
     "The sum's first {shown} dimensions are added here exactly as the model adds them. Its norm is left out: that needs all {width} dimensions exactly, and the Trace carries only the first {shown}.",
   "embed.tables":
     "The token embedding table has {vocabulary} rows of {width} numbers, one per token; the position embedding table has {positions} rows, one per Position the model can read.",
+  "table.weight": "Weight",
   "table.vector": "Vector",
   "table.firstDimensions": "First {n} dimensions",
   "table.norm": "Norm",

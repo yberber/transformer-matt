@@ -35,6 +35,7 @@ export const tr: Record<MessageKey, string> = {
   "stage.embed": "Embedding",
   "stage.blocks": "Bloklar",
   "stage.predict": "Tahmin",
+  "stage.attention": "Attention",
   "stage.spec.tokens.one": "{n} token",
   "stage.spec.tokens.other": "{n} token",
   "stage.spec.layers": "{n} layer",
@@ -61,6 +62,9 @@ export const tr: Record<MessageKey, string> = {
   "view.predict.lead":
     "Son konumda model, bildiği {vocabulary} token'ın her birine bir olasılık verir; açgözlü (greedy) kod çözme her zaman en olası olanı ekler.",
 
+  "view.attention.lead":
+    "Her [[layer|layer]]'da [[attention|attention]], her token'ın kendinden önceki token'lara ve kendisine geri bakmasını sağlar; layer'ın {heads} head'inin her biri hangi token'a ne kadar bakacağına kendisi karar verir.",
+
   "tokens.listLabel": "Token'lar",
   "tokens.prompt": "Prompt",
   "tokens.continuation": "Devam metni",
@@ -78,6 +82,33 @@ export const tr: Record<MessageKey, string> = {
   "predict.greedy":
     "Kod çözme açgözlüdür (greedy): her zaman en olası token eklenir, bu yüzden aynı Prompt her zaman aynı devam metnini verir.",
   "predict.detailsNote": "Olasılıklar {vocabulary} token'ın tümü üzerindendir; ilk 10'un toplamı {sum}.",
+  "blocks.attentionLink": "Her token'ın neye baktığını attention ısı haritasında görün",
+  "attention.layer": "Layer",
+  "attention.head": "Head",
+  "attention.shortcut": "Head değiştirmek için [ ve ] tuşlarına basın.",
+  "attention.heatmapLabel": "Attention ısı haritası, layer {layer}, head {head}",
+  "attention.hint":
+    "Her satır geriye bakan bir token, her sütun onun bakabileceği bir token'dır; hücrenin rengi ne kadar güçlüyse attention o kadar fazladır. Hücreler arasında gezinmek için ısı haritasına odaklanıp ok tuşlarını kullanın.",
+  "attention.rows": "bakan",
+  "attention.columns": "bakılan",
+  "attention.masked": "Köşegenin üstündeki hücreler boş kalır: bir token kendisinden sonra gelen token'lara asla bakamaz.",
+  "attention.scale": "Satırın attention'ındaki pay",
+  "attention.cell": "{query} (Konum {from}) → {key} (Konum {to}): {weight}",
+  "attention.announceHead": "Layer {layer}, head {head}.",
+  "attention.query": "Sorgu token'ı",
+  "attention.queryOption": "Konum {n}: {token}",
+  "attention.rankedLabel": "{query} (Konum {n}) nereye bakıyor",
+  "attention.rest": "diğer {n} token",
+  "attention.overview": "Tüm ısı haritasına genel bakış, {n}. konumun satırı işaretli",
+  "attention.sinkTitle": "Attention'ın bu kadarı neden ilk token'a gidiyor",
+  "attention.sink":
+    "Bir token'ın attention'ı her zaman toplam %100 eder; bu yüzden bakacak işe yarar bir şey bulamayan bir head de onu bir yere koymak zorundadır. Pek çok head onu, her token'ın görebildiği ilk token'a bırakır. Buna attention sink denir ve bir hata değildir. GPT-2 bunu özel bir ayırıcı token'la başlayan metinlerde öğrendi; bu site, varsayılan bir Hugging Face çalıştırması gibi bu token'ı eklemez, bu yüzden o rolü Prompt'un ilk token'ı üstlenir.",
+  "attention.sinkShare": "Bu head'de ilk token'dan sonraki token'lar attention'larının ortalama {share} kadarını ona verir.",
+  "attention.exactCaption": "{query} (Konum {n}) için layer {layer}, head {head} içindeki kesin ağırlıklar",
+  "attention.precision":
+    "Her ağırlık en yakın 1/255'e yuvarlanarak saklanır; yani modelin kendi değerinden en fazla 0,002 farklıdır ve bir satırın toplamı ancak yaklaşık olarak 1'dir. Isı haritasında ya da telefonda sorgu token'ı seçicisiyle başka bir satır seçin.",
+  "attention.heads":
+    "Bir layer'ın {heads} head'inin her biri, her token'ın {width} sayısından {headWidth} tanesiyle çalışır; {layers} layer toplam {total} head eder.",
   "embed.listLabel": "Konum başına embedding'ler",
   "embed.added":
     "Token embedding'i ile konum embedding'i sayı sayı toplanır; ilk bloğa giren, bu toplamdır.",
@@ -97,6 +128,7 @@ export const tr: Record<MessageKey, string> = {
     "Toplamın ilk {shown} boyutu burada, modelin topladığı gibi kesin olarak toplanır. Normu gösterilmez: bunun için {width} boyutun tümü kesin olarak gerekir, Trace ise yalnızca ilk {shown} boyutu taşır.",
   "embed.tables":
     "Token embedding tablosunda her token için bir satır olmak üzere {width} sayılık {vocabulary} satır vardır; konum embedding tablosunda ise modelin okuyabildiği her konum için bir satır olmak üzere {positions} satır vardır.",
+  "table.weight": "Ağırlık",
   "table.vector": "Vektör",
   "table.firstDimensions": "İlk {n} boyut",
   "table.norm": "Norm",

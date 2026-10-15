@@ -26,8 +26,15 @@ EMBEDDING_TOLERANCE = 1e-6
 # rounding depends on the CPU, and a scale is a maximum divided by 127.
 RELATIVE_TOLERANCE = 1e-5
 N_EMBD = 768
+N_LAYER = 12
+N_HEAD = 12
 INT8_MAX = 127
 EXACT_DIMENSIONS = 16
+# Attention weights travel as round(weight × 255), so half a step is 1/510 (the
+# spec's tolerance); a weight on a rounding boundary may land on either side, and
+# the CPU's last bits decide which.
+ATTENTION_STEPS = 255
+ATTENTION_TOLERANCE = 1 / (2 * ATTENTION_STEPS) + 1e-6
 
 # The spec's selection rules, restated. The margin was lowered from 0.05 to 1e-3 so
 # that natural prose can qualify (2026-10-15); 1e-3 still keeps every greedy choice
@@ -43,8 +50,9 @@ def reference_tokenizer():
 
 @pytest.fixture(scope="module")
 def reference_model():
+    # Eager attention, because the default SDPA kernel returns no attention weights.
     model = AutoModelForCausalLM.from_pretrained(
-        MODEL_ID, revision=MODEL_REVISION, dtype=torch.float32
+        MODEL_ID, revision=MODEL_REVISION, dtype=torch.float32, attn_implementation="eager"
     )
     return model.eval()
 
@@ -84,6 +92,10 @@ def float32s(encoded: str) -> list[float]:
 def int8s(encoded: str) -> list[int]:
     raw = base64.b64decode(encoded, validate=True)
     return list(struct.unpack(f"<{len(raw)}b", raw))
+
+
+def uint8s(encoded: str) -> list[int]:
+    return list(base64.b64decode(encoded, validate=True))
 
 
 def assert_same_top_tokens(actual_ids, actual_probabilities, expected_ids, expected_probabilities, probability_of):
@@ -133,12 +145,16 @@ def assert_same_trace(actual: dict, expected: dict) -> None:
     assert len(actual["positions"]) == len(expected["positions"])
     for actual_position, expected_position in zip(actual["positions"], expected["positions"]):
         assert actual_position.keys() == expected_position.keys() == {
-            "token_id", "token_text", "token_bytes", "token_embedding", "position_embedding", "predictions"
+            "token_id", "token_text", "token_bytes", "token_embedding", "position_embedding", "attention", "predictions"
         }
         for field in ("token_id", "token_text", "token_bytes"):
             assert actual_position[field] == expected_position[field]
         for field in ("token_embedding", "position_embedding"):
             assert_same_embedding(actual_position[field], expected_position[field])
+        # A weight on a rounding boundary may land one step away.
+        actual_attention, expected_attention = uint8s(actual_position["attention"]), uint8s(expected_position["attention"])
+        assert len(actual_attention) == len(expected_attention)
+        assert all(abs(a - e) <= 1 for a, e in zip(actual_attention, expected_attention))
 
         actual_tokens = actual_position["predictions"]["tokens"]
         expected_tokens = expected_position["predictions"]["tokens"]
@@ -272,6 +288,37 @@ def test_token_and_position_embeddings_add_up_to_the_first_blocks_input(example,
         assert [a + b for a, b in zip(token, at_position)] == pytest.approx(
             expected[i, :EXACT_DIMENSIONS].tolist(), abs=EMBEDDING_TOLERANCE
         )
+
+
+@pytest.fixture(scope="module")
+def reference_attention(reference_run, reference_model):
+    """Each Example's attention weights from one plain forward pass over the whole
+    sequence: a tensor [layer, head, query Position, key Position]."""
+    attention = {}
+
+    def run(example):
+        if example.id not in attention:
+            token_ids = torch.tensor([reference_run(example)["token_ids"]])
+            with torch.no_grad():
+                layers = reference_model(token_ids, output_attentions=True).attentions
+            attention[example.id] = torch.stack([layer[0] for layer in layers])
+        return attention[example.id]
+
+    return run
+
+
+@pytest.mark.parametrize("example", EXAMPLES, ids=lambda e: e.id)
+def test_attention_rows_match_a_hugging_face_run(example, reference_attention):
+    expected = reference_attention(example)
+    positions = read_example(example.id)["positions"]
+    assert expected.shape[:3] == (N_LAYER, N_HEAD, len(positions))
+
+    for i, position in enumerate(positions):
+        # Layer by layer, head by head: the weights from this Position to Positions 0 … i.
+        weights = [value / ATTENTION_STEPS for value in uint8s(position["attention"])]
+        assert weights == pytest.approx(
+            expected[:, :, i, : i + 1].flatten().tolist(), abs=ATTENTION_TOLERANCE
+        ), f"attention at Position {i}"
 
 
 def test_there_are_two_examples_in_each_length_band():

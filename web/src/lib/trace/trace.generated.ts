@@ -32,6 +32,7 @@ export interface PositionRecord {
   token_bytes: string;
   token_embedding: Embedding;
   position_embedding: Embedding;
+  attention: string;
   predictions: TopTokens;
 }
 /**

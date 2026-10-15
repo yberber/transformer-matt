@@ -35,6 +35,7 @@ export const de: Record<MessageKey, string> = {
   "stage.embed": "Embedding",
   "stage.blocks": "Blöcke",
   "stage.predict": "Vorhersage",
+  "stage.attention": "Attention",
   "stage.spec.tokens.one": "{n} Token",
   "stage.spec.tokens.other": "{n} Tokens",
   "stage.spec.layers": "{n} Layer",
@@ -61,6 +62,9 @@ export const de: Record<MessageKey, string> = {
   "view.predict.lead":
     "An der letzten Position gibt das Modell jedem seiner {vocabulary} Tokens eine Wahrscheinlichkeit, und Greedy-Decoding hängt immer das wahrscheinlichste an.",
 
+  "view.attention.lead":
+    "In jedem [[layer|Layer]] lässt [[attention|Attention]] jedes Token auf die Tokens vor ihm und auf sich selbst zurückblicken, und jeder der {heads} Heads des Layers entscheidet für sich, wie stark er auf welches Token schaut.",
+
   "tokens.listLabel": "Tokens",
   "tokens.prompt": "Prompt",
   "tokens.continuation": "Fortsetzung",
@@ -78,6 +82,33 @@ export const de: Record<MessageKey, string> = {
   "predict.greedy":
     "Das Decoding ist greedy: Es wird immer das wahrscheinlichste Token angehängt, deshalb ergibt derselbe Prompt immer dieselbe Fortsetzung.",
   "predict.detailsNote": "Die Wahrscheinlichkeiten beziehen sich auf alle {vocabulary} Tokens; die Top 10 ergeben zusammen {sum}.",
+  "blocks.attentionLink": "In der Attention-Heatmap sehen, worauf jedes Token schaut",
+  "attention.layer": "Layer",
+  "attention.head": "Head",
+  "attention.shortcut": "Mit [ und ] wechseln Sie den Head.",
+  "attention.heatmapLabel": "Attention-Heatmap, Layer {layer}, Head {head}",
+  "attention.hint":
+    "Jede Zeile ist ein Token, das zurückblickt, jede Spalte ein Token, auf das es schauen kann, und je kräftiger die Farbe einer Zelle, desto mehr Attention. Fokussieren Sie die Heatmap und wechseln Sie mit den Pfeiltasten zwischen den Zellen.",
+  "attention.rows": "schaut",
+  "attention.columns": "wird angeschaut",
+  "attention.masked": "Die Zellen über der Diagonale bleiben leer: Ein Token kann nie auf Tokens schauen, die nach ihm kommen.",
+  "attention.scale": "Anteil an der Attention der Zeile",
+  "attention.cell": "{query} (Position {from}) → {key} (Position {to}): {weight}",
+  "attention.announceHead": "Layer {layer}, Head {head}.",
+  "attention.query": "Abfragendes Token",
+  "attention.queryOption": "Position {n}: {token}",
+  "attention.rankedLabel": "Wohin {query} (Position {n}) schaut",
+  "attention.rest": "{n} weitere Tokens",
+  "attention.overview": "Überblick über die ganze Heatmap, die Zeile von Position {n} markiert",
+  "attention.sinkTitle": "Warum so viel Attention auf das erste Token fällt",
+  "attention.sink":
+    "Die Attention eines Tokens ergibt immer zusammen 100 %. Ein Head, der nichts Nützliches findet, muss sie also trotzdem irgendwo ablegen. Viele Heads parken sie auf dem ersten Token, das jedes Token sehen kann. Das nennt man einen Attention-Sink, und es ist kein Fehler. GPT-2 hat das an Texten gelernt, die mit einem besonderen Trenn-Token beginnen; wie ein Standardlauf von Hugging Face fügt diese Seite keines hinzu, also übernimmt das erste Token des Prompts diese Rolle.",
+  "attention.sinkShare": "In diesem Head geben ihm die Tokens nach dem ersten im Schnitt {share} ihrer Attention.",
+  "attention.exactCaption": "Exakte Gewichte von {query} (Position {n}) in Layer {layer}, Head {head}",
+  "attention.precision":
+    "Jedes Gewicht ist auf das nächste 1/255 gerundet gespeichert, liegt also höchstens 0,002 vom Wert des Modells entfernt, und eine Zeile ergibt nur ungefähr 1. Wählen Sie eine andere Zeile in der Heatmap oder auf dem Smartphone mit der Auswahl des abfragenden Tokens.",
+  "attention.heads":
+    "Jeder der {heads} Heads eines Layers arbeitet mit {headWidth} der {width} Zahlen jedes Tokens; {layers} Layer ergeben zusammen {total} Heads.",
   "embed.listLabel": "Embeddings pro Position",
   "embed.added":
     "Token-Embedding und Positions-Embedding werden Zahl für Zahl addiert, und ihre Summe geht in den ersten Block.",
@@ -97,6 +128,7 @@ export const de: Record<MessageKey, string> = {
     "Die ersten {shown} Dimensionen der Summe werden hier exakt so addiert, wie das Modell sie addiert. Ihre Norm fehlt: Dafür bräuchte es alle {width} Dimensionen exakt, und der Trace enthält nur die ersten {shown}.",
   "embed.tables":
     "Die Token-Embedding-Tabelle hat {vocabulary} Zeilen mit je {width} Zahlen, eine pro Token; die Positions-Embedding-Tabelle hat {positions} Zeilen, eine pro Position, die das Modell lesen kann.",
+  "table.weight": "Gewicht",
   "table.vector": "Vektor",
   "table.firstDimensions": "Erste {n} Dimensionen",
   "table.norm": "Norm",
