@@ -20,5 +20,5 @@
 - The schema drift and byte-identical regeneration checks are the existing pytest tests. CI runs them through `uv run pytest`, with no separate steps.
 - The workflow has never run on GitHub. It passes actionlint, and each step passes when run locally, but there is no remote yet.
 - The model cache key is the pinned revision. A pre-download step fills it with the config, tokenizer and `model.safetensors`, because an exact cache hit is never re-saved. If the core starts loading another file, add it to `allow_patterns` in `.github/workflows/ci.yml`.
-- On Linux, `uv.lock` resolves torch with its CUDA wheels (several GB of `nvidia-*` packages), although inference runs on CPU. CI still works, but a CPU-only torch index would make installs much faster.
+- On Linux, torch comes from PyTorch's CPU-only index (`[tool.uv.sources]` in `python/pyproject.toml`), so CI doesn't install several GB of CUDA libraries. macOS keeps PyPI's torch, which is already CPU-only.
 - Regeneration is byte-identical on macOS today, because the Trace holds only tokens. Once Traces carry floats (05+), byte identity between the macOS-generated files and the Linux CI run needs watching.

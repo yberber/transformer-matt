@@ -28,3 +28,12 @@ packages = ["src/inside_transformer", "src/regenerate"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+# PyPI's Linux torch wheels pull in several GB of CUDA libraries; inference runs on CPU.
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true

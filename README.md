@@ -13,7 +13,7 @@ A website that shows curious non-experts how GPT-2 small turns a piece of text i
 
 ## Prerequisites
 
-- [uv](https://docs.astral.sh/uv/) for Python. It installs Python 3.12 and the exactly pinned torch and transformers versions.
+- [uv](https://docs.astral.sh/uv/) for Python. It installs Python 3.12 and the exactly pinned torch and transformers versions. On Linux, torch comes from PyTorch's CPU-only index, which avoids the CUDA libraries.
 - Node.js at the version in [`.nvmrc`](.nvmrc) (`nvm use`, or install that version) and npm.
 
 The model is GPT-2 small (`openai-community/gpt2`) at a pinned revision; the first Python run downloads it from Hugging Face into `~/.cache/huggingface`. Building and running the web app needs neither Python nor the model.
