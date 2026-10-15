@@ -7,11 +7,21 @@ import { DEFAULT_EXAMPLE, EXAMPLE_IDS, EXAMPLE_STEPS, type ExampleId } from "../
 export const STAGES = ["tokenize", "embed", "blocks", "predict"] as const;
 export type Stage = (typeof STAGES)[number];
 
-/** Every view: the stages, plus attention, which opens up one layer and head of Blocks. */
-export const VIEWS = [...STAGES, "attention"] as const;
+/** The separate pages about the whole model, outside the pipeline and the same at every Step. */
+export const PAGES = ["architecture"] as const;
+export type Page = (typeof PAGES)[number];
+
+/** Every view: the stages; attention, which opens up one layer and head of Blocks; and the pages. */
+export const VIEWS = [...STAGES, "attention", ...PAGES] as const;
 export type View = (typeof VIEWS)[number];
 
-export function stageOf(view: View): Stage {
+export function isPage(view: View): view is Page {
+  return PAGES.some((page) => page === view);
+}
+
+/** The pipeline stage a view belongs to; a page belongs to none. */
+export function stageOf(view: View): Stage | undefined {
+  if (isPage(view)) return undefined;
   return view === "attention" ? "blocks" : view;
 }
 

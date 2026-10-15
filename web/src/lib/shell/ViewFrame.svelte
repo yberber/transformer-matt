@@ -11,15 +11,17 @@
   let { view, lead, children, details }: { view: View; lead: Snippet; children?: Snippet; details: Snippet } =
     $props();
 
-  const number = $derived(String(STAGES.indexOf(stageOf(view)) + 1).padStart(2, "0"));
+  // A separate page sits outside the pipeline and is the same at every Step, so it carries neither label.
+  const stage = $derived(stageOf(view));
+  const number = $derived(stage && String(STAGES.indexOf(stage) + 1).padStart(2, "0"));
 </script>
 
 <section class="specimen" aria-labelledby="view-heading">
   <span class="crop tl"></span><span class="crop tr"></span><span class="crop bl"></span><span class="crop br"></span>
   <header class="label">
-    <span class="number">{t("view.number", { n: number })}</span>
+    {#if number}<span class="number">{t("view.number", { n: number })}</span>{/if}
     <h2 id="view-heading">{t(`stage.${view}`)}</h2>
-    <span class="number">{t("step.of", { step: route.step, steps: EXAMPLE_STEPS })}</span>
+    {#if stage}<span class="number">{t("step.of", { step: route.step, steps: EXAMPLE_STEPS })}</span>{/if}
   </header>
   <p class="lead">{@render lead()}</p>
   {@render children?.()}
