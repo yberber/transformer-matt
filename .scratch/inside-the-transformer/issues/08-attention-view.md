@@ -15,7 +15,7 @@
 - [x] Details show exact attention weights
 - [x] layer and head are in the query string
 - [x] The view is added to the axe checks
-- [x] pytest: attention matches an independent Hugging Face run within 1/510
+- [x] pytest: attention matches an independent Hugging Face run within 1/510 plus the 1e-4 probability tolerance (changed 2026-10-15, see the CI fix comment)
 - [x] Each Example file stays under 300 KB brotli-compressed
 - [x] Playwright: "change head"
 
@@ -44,3 +44,7 @@
   - The plot is one tab stop with `role="application"`, not an ARIA `grid`. A real grid needs a row and cell for every one of up to 2,080 cells. `application` makes screen readers pass arrow keys through, which is what the spec's "single focusable grid with … a polite live region" needs.
   - A visually hidden `role="status"` announces "token A (Position i) → token B (Position j): weight" on focus and on every move. `[`/`]` and the selects announce "Layer l, head h." first. `[`/`]` wrap within the layer and are ignored in text fields.
 - **Details** show the exact weights (three decimals, enough to tell every k/255 apart) for the cursor's query row, not the whole matrix. This keeps them readable at 64 Positions. The cursor or the phone chooser picks the row.
+
+**CI fix (2026-10-15).** CI on Linux failed `test_attention_rows_match_a_hugging_face_run[buttons]` from this ticket on. At Position 28 one weight is 73.5007 × 1/255 in the Linux reference, 2.9e-6 above a rounding boundary; the macOS file rounds it to 73. The miss was 0.0019637 against 1/510 + 1e-6 = 0.0019618.
+- The tolerance is now 1/510 + 1e-4, the spec's probability tolerance, since a weight is a probability. A wrong head, layer or Position is still off by far more.
+- Regenerating the file on Linux would only move the failure to macOS, and a smaller slack such as 1e-5 would be a new number the spec doesn't justify.

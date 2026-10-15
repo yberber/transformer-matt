@@ -223,7 +223,7 @@ Alongside the pipeline, an architecture view shows the whole model with shapes a
 - The codebase is greenfield, so there is no prior art; these five seams establish it.
 
 1. **Committed Example files** (pytest):
-   - An independent Hugging Face run (plain `model(...)` plus a greedy argmax loop, not using the core) must match each file: identical tokens (top-10 predictions whose probabilities are within 1e-4 of each other may swap ranks), probabilities within 1e-4, attention within 1/510, first 16 embedding dimensions within 1e-6.
+   - An independent Hugging Face run (plain `model(...)` plus a greedy argmax loop, not using the core) must match each file: identical tokens (top-10 predictions whose probabilities are within 1e-4 of each other may swap ranks), probabilities within 1e-4, attention within 1/510 plus the 1e-4 probability tolerance, first 16 embedding dimensions within 1e-6. (Changed 2026-10-15 from "within 1/510": a weight near a rounding boundary rounds either way, because the core's KV-cache run and the reference's whole-sequence run, on different CPUs, differ in their last float32 bits.)
    - Regenerating reproduces the committed files: tokens, token IDs, headers and shapes exactly; float values within the tolerances above; near-tied top-10 predictions (probabilities within 1e-4 of each other) may swap ranks. (Changed 2026-10-15 from "byte-identical": float32 bits differ between the macOS files and the Linux CI run.)
    - Each file is under 300 KB brotli-compressed.
    - Each Example satisfies the selection rules (length band, no repeated 3-gram, minimum margin 0.001).

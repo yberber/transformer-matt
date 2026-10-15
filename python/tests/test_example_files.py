@@ -30,11 +30,13 @@ N_LAYER = 12
 N_HEAD = 12
 INT8_MAX = 127
 EXACT_DIMENSIONS = 16
-# Attention weights travel as round(weight × 255), so half a step is 1/510 (the
-# spec's tolerance); a weight on a rounding boundary may land on either side, and
-# the CPU's last bits decide which.
+# Attention weights travel as round(weight × 255), so half a step is 1/510. A weight
+# near a rounding boundary may land on either side: the core's KV-cache run on macOS
+# and the reference's whole-sequence run on Linux differ in their last float32 bits
+# (by about 3e-6 in `buttons`). A weight is a probability, so on top of half a step it
+# gets the probability tolerance, as the spec says (2026-10-15).
 ATTENTION_STEPS = 255
-ATTENTION_TOLERANCE = 1 / (2 * ATTENTION_STEPS) + 1e-6
+ATTENTION_TOLERANCE = 1 / (2 * ATTENTION_STEPS) + PROBABILITY_TOLERANCE
 # The logit lens keeps this many tokens per layer.
 LOGIT_LENS_TOKENS = 5
 
