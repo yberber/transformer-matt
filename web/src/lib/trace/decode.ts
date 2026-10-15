@@ -1,4 +1,5 @@
 // The one Trace decoder: Example files and Live API responses share this path (ADR 0001).
+import type * as Api from "../live/api.generated";
 import type * as Wire from "./trace.generated";
 
 export type TraceHeader = Wire.TraceHeader;
@@ -90,7 +91,7 @@ function decodeAttention(encoded: string, position: number, { n_layer, n_head }:
   );
 }
 
-function decodeToken(wire: Wire.Token): Token {
+export function decodeToken(wire: Wire.Token): Token {
   return { tokenId: wire.token_id, tokenText: wire.token_text, tokenBytes: fromBase64(wire.token_bytes) };
 }
 
@@ -99,20 +100,39 @@ function decodePredictions(wire: Wire.TopTokens): Prediction[] {
   return wire.tokens.map((token, i) => ({ ...decodeToken(token), probability: probabilities[i]! }));
 }
 
+/** Position records in order, the first of them at Position `first`. */
+function decodePositions(records: Wire.PositionRecord[], first: number, config: Wire.ModelConfig): PositionRecord[] {
+  return records.map((record, i) => ({
+    ...decodeToken(record),
+    tokenEmbedding: decodeEmbedding(record.token_embedding),
+    positionEmbedding: decodeEmbedding(record.position_embedding),
+    attention: decodeAttention(record.attention, first + i, config),
+    mlpImpact: float32s(record.mlp_impact),
+    logitLens: record.logit_lens.map(decodePredictions),
+    predictions: decodePredictions(record.predictions),
+  }));
+}
+
 export function decodeTrace(wire: Wire.Trace): Trace {
   return {
     header: wire.header,
     promptLength: wire.prompt_length,
-    positions: wire.positions.map((record, position) => ({
-      ...decodeToken(record),
-      tokenEmbedding: decodeEmbedding(record.token_embedding),
-      positionEmbedding: decodeEmbedding(record.position_embedding),
-      attention: decodeAttention(record.attention, position, wire.header.config),
-      mlpImpact: float32s(record.mlp_impact),
-      logitLens: record.logit_lens.map(decodePredictions),
-      predictions: decodePredictions(record.predictions),
-    })),
+    positions: decodePositions(wire.positions, 0, wire.header.config),
   };
+}
+
+/** A Step response that starts at Position 0 (the Prompt text was sent): a whole Trace. */
+export function decodeStepTrace(wire: Api.StepResponse): Trace {
+  if (wire.first_position !== 0) throw new Error(`Step response starts at Position ${wire.first_position}, not 0`);
+  return decodeTrace(wire);
+}
+
+/** The Trace with a Step response's new Positions appended; they must follow on from its last one. */
+export function appendStep(trace: Trace, wire: Api.StepResponse): Trace {
+  if (wire.first_position !== trace.positions.length || wire.prompt_length !== trace.promptLength) {
+    throw new Error(`Step response from Position ${wire.first_position} does not continue this Trace`);
+  }
+  return { ...trace, positions: [...trace.positions, ...decodePositions(wire.positions, wire.first_position, wire.header.config)] };
 }
 
 /** How many Steps the Trace holds beyond its Prompt. */

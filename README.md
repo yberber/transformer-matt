@@ -28,6 +28,8 @@ npm run dev        # development server at http://localhost:5173
 npm run build      # static build in web/dist
 ```
 
+Example mode needs nothing else. Live mode calls the inference server under `/api`: the dev and preview servers forward `/api/*` to `API_URL` with the prefix removed (default `http://127.0.0.1:8000`, where `uv run serve` listens), as the reverse proxy does in production. Without a server, Live mode says the server is unavailable and offers one click back to Example mode.
+
 ## Run the inference server
 
 Live mode runs the user's own Prompt on a small CPU inference server (FastAPI on uvicorn, one worker process) over the same Python core:
@@ -58,9 +60,9 @@ cd python && uv run pytest     # Example files vs an independent Hugging Face gr
 
 cd web
 npm run check                  # typecheck (svelte-check)
-npm test                       # Vitest: Example files validate against the committed schema and match the web app's Example list; generated types are current; every translation key exists in all three languages
+npm test                       # Vitest: Example files and Live-API fixtures validate against the committed schemas; Example files match the web app's Example list; generated types are current; every translation key exists in all three languages
 npx playwright install chromium   # once
-npm run test:e2e               # Playwright against the built site, including the axe checks
+npm run test:e2e               # Playwright against the built site and the real inference server, including the axe checks
 npm run lighthouse             # Lighthouse CI on the built site: performance at least 90, initial page load under 2 MB
 ```
 
@@ -76,17 +78,21 @@ const MAIN_VIEWS = [
 
 The checks run at the desktop viewport, so a layout that exists only on narrow screens needs its own test.
 
+`npm run test:e2e` starts three servers (or reuses ones already running, outside CI): the inference server (`uv run serve` on port 8000, counted as up once Health reports ready, so the first run waits for the model to load), the built site on port 4173 with `/api` forwarded to it, and a second copy of the built site on port 4174 whose `/api` leads to no server, for the "Live mode with server unavailable" scenarios. The Live-mode scenarios live in `web/e2e/live-mode.spec.ts` and `web/e2e/live-mode-unavailable.spec.ts`.
+
+The Live-API fixtures in `web/tests/fixtures/live/` are real inference-server responses. `npm run record:fixtures` re-records them: it starts the server on a spare port, records the loading-state responses while the model loads, then the rest.
+
 Lighthouse CI (`web/lighthouserc.cjs`) runs in Example mode on the landing page and on the longest Example, three times each, and checks the median run. It uses Lighthouse's default mobile emulation and throttling, and Playwright's Chromium, so `npx playwright install chromium` covers it too. Reports land in `web/.lighthouseci/reports`.
 
 ## UI text and languages
 
 The UI is in English, Turkish and German. English in `web/src/lib/i18n/messages/en.ts` is the source; `tr.ts` and `de.ts` translate every key, and `npm test` fails if a key, `{parameter}` or technical term is missing in either. Technical terms (token, embedding, attention, layer) stay in English and are marked `[[term|text]]`, which renders the text with a short explanation from `term.<term>` in the reader's language. The Turkish and German drafts need native-speaker review before release.
 
-View state (`example`, `view`, `layer`, `head`, `step`, `lang`) lives in the query string, so a URL reopens the same view. `layer` and `head` run from 1 to 12, as the UI counts them; `step` runs from 0 (the Prompt alone) to 16. The `attention` view is not a station of the pipeline strip: it opens up one layer and head of Blocks, so the strip marks Blocks while it is shown. The Blocks view and the attention view share `layer`, so the Blocks view's link opens the heatmap at the layer being shown.
+View state (`mode`, `example`, `view`, `layer`, `head`, `step`, `lang`) lives in the query string, so a URL reopens the same view. `mode` is `example` (the default) or `live`. `layer` and `head` run from 1 to 12, as the UI counts them; `step` runs from 0 (the Prompt alone) to 16 in Example mode and to 64 in Live mode. A Live run's Trace is held in the browser only, so a reloaded Live-mode URL opens Live mode at Step 0 with an empty Prompt. The `attention` view is not a station of the pipeline strip: it opens up one layer and head of Blocks, so the strip marks Blocks while it is shown. The Blocks view and the attention view share `layer`, so the Blocks view's link opens the heatmap at the layer being shown.
 
 ## CI
 
-[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on every push. One job runs pytest, whose checks include schema drift and the check that regenerating reproduces the committed Example data. The other runs the typecheck, Vitest, Playwright (with the axe checks) and Lighthouse CI, and uploads the Lighthouse reports when a step fails. Python dependencies come from `uv sync --locked` and web dependencies from `npm ci`, with Node at the `.nvmrc` version. The pinned GPT-2 model is cached between runs under a key that contains its revision.
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on every push. One job runs pytest, whose checks include schema drift and the check that regenerating reproduces the committed Example data. The other runs the typecheck, Vitest, Playwright (with the axe checks, and with the real inference server, so it installs the Python core and the cached model too) and Lighthouse CI, and uploads the Lighthouse reports when a step fails. Python dependencies come from `uv sync --locked` and web dependencies from `npm ci`, with Node at the `.nvmrc` version. The pinned GPT-2 model is cached between runs under a key that contains its revision.
 
 The workflow only runs once the repo has a GitHub remote. Add one and push (`git remote add origin <url> && git push -u origin main`) to start it.
 
@@ -114,7 +120,7 @@ The Trace is both the Example file format and the Live API response (ADR 0001), 
 
 ```sh
 cd python && uv run export-schema && uv run regenerate
-cd ../web && npm run gen:types
+cd ../web && npm run gen:types && npm run record:fixtures
 ```
 
-`uv run export-schema` writes both `contract/trace.schema.json` and `contract/api.schema.json`; the server's request and response models live in `python/src/inside_transformer/api.py`. `uv run pytest` fails if either committed schema differs from the export, and `npm test` fails if the generated TypeScript types differ from the Trace schema.
+`uv run export-schema` writes both `contract/trace.schema.json` and `contract/api.schema.json`; the server's request and response models live in `python/src/inside_transformer/api.py`. `uv run pytest` fails if either committed schema differs from the export, and `npm test` fails if the generated TypeScript types (`web/src/lib/trace/trace.generated.ts` and `web/src/lib/live/api.generated.ts`) differ from the schemas, or if a Live-API fixture no longer validates.

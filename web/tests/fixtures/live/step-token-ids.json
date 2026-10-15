@@ -1,0 +1,453 @@
+{
+  "header": {
+    "model_id": "openai-community/gpt2",
+    "model_revision": "607a30d783dfa663caf39e06633721c8d4cfcd7e",
+    "config": {
+      "vocab_size": 50257,
+      "n_positions": 1024,
+      "n_embd": 768,
+      "n_layer": 12,
+      "n_head": 12
+    }
+  },
+  "prompt_length": 6,
+  "first_position": 7,
+  "positions": [
+    {
+      "token_id": 19952,
+      "token_text": " climbed",
+      "token_bytes": "IGNsaW1iZWQ=",
+      "token_embedding": {
+        "values": "GOEOGgMAuPoS9Qb59QXyA/8CzxnMFtUND/8p9AMeCMgR+gMQxAoC/eAPAeoE4Boh8eoV8iMWDesHA/rv9efWIjnMBOcgEBENHAb8JAI25RgJ6PUGEgLnPAIaAhP1JQPrHvPyABoN3eHnC+jW5eLv/xz1FxkH+gQXFQsu//vsA/wLEh77BwATF/wLufgJ+EQU/sHpCer8CP/g1QDiEfAVAuf+9w0KJyEp4iIEBOke7AUOFQ8w/OAODgMVBfUG5A0F7/sMCh4BMgEB5gfwL/0T/NsXJPXb4eYKDuMB6PX3IOnrHRYF5v325876FgII/PfFDvjRKgX83OX9ExrnA9388A/z2gvt9RPgACA92f36EOb99fbc5P4Z9xIP/xzL7Ozh9xAK+gsO7vEB4fkg+QL2Cg0r8ggVEusHHR0i6/3h8O4iBP/t9RO5DQ4BCALk2P3//9/08wwLChIR4/8FzSAZ2AcNFPUEAiMY2gOBEd8S+g/6G+b4IzYiAO7xCvr+AhQCCwT0H/wmDQX06icIBB4S/9vx5gnyIB3y5fH9DgTc+B7v0fEDC+sdFhYR/g8KBdDzLPDm2e7y/Pji2d/oDhDxxvYAKdMN/vvnB/v2+QX78gcs7AEADOHyEv/4I+PfDxIeO8vxFPwBE8v38hAB3/kW/9kNCAnd8QMj/BEHw+DYBxb0BhEa+gwX+h/++S8QESdc/SD9/+4ZCALnAREa8BYWRCgD/PkHAhXwLfsmF/ka/w/2/OftCAP1+98M+Q3z5yLz3PAE9xT56v7cA/n83e/58R4N2gkGGgDd8wIQ9QQVOfmWGh3tHuj6F+4fEQgYIu8SD/oNLtsVC/X2FREoHAf2De4C9Bz++f0A/AQK8B/7AebkGurrCBYRJBDR6xH92Q338donAt3U6N71EAAG9gQYCNba/eAWKAfp7hbbAuLsCC393znuFDP8+vDmLQb34fga9BYlA/Hs+fL5A+z6CPsl6zUHCCXmCgLnJhIEEhL96DL6+/vp3f4HERnz6frgDgAl",
+        "scale": 0.0052622,
+        "first_dimensions": "dMUAPs0UJ76kMJY9lAAKPhLmgDz0VyM643bBviR0Bb2OUr49RLNlvYbG8TxVVxS9AHxnva1V3jynyJO9WGpjPA==",
+        "norm": 3.5539665
+      },
+      "position_embedding": {
+        "values": "AAANAAABAQMAAAEAAAAAAgEA/ywAAQABAAD+AAAAAQEAAAEA5AD/AAAAAP8AAAABAM3/AA4AAe0AAAAC/wEBAAEAAP/wAAEBAAAAAAAE//8CAQEBAAmqAQD/AQACAAABAAAAAP8ABQH/AAESAAD/AAAAAABaAAAAAP8AAgAAAAEDAAAAAAAAAAABAPYB/wQAAAT/AP8CAfoC+gAAAQH/AfcAAAD/AAHqAQH/AQEA/vgGAAH//wAAAAAAAAAAAgH/Af0AAQAAAAIBAP8BAAD/AAH/AP8ALgD/AAAAAQEC/wD//wD/AP8AAQUAAAEAAAAA/v8AAAEAAAD/AP7+AAAAAv////8A/AEA/wAB/QECDAcAAAAAIQAAAQEA/gAB/wIA/Nn//wH//gEAAQEAfwAA/wEBAAC2AADt/wH3//8AAAFPAAAAAQAAAAEAAP///wABAAD/AAD/AP///wAAAAD//wD/AACKAAH/AAUbAAAf//8A/wAA/wHr/gAnAQAAAAEAAAAAAAEPAAEAAf0A/f8AAQEA7AAAAf8A+QAAAQAAAAH/AQD/LwEAAAAA/wH8AOwAAP8B/gAAALv9AA8AAgEA/wABAgH/GwEz/AEA5QABAAAAAQH/AAABAP8BAAAAAP8TAf8AAAAAAAD7/wAAAAD/AOnnAQH//wD3AQH/AQEAALEEAAAA/wQA/wAAAQEAMAfmjf8BAAAAAAAA/wAAcwAAB/8BAAH8AgDpAAASAP8AAAIAAAEAAAD/AAH//wAAAAAAAf//AAIX/wAAAQAA+/8B/wD+AAAAAAAB/wEAAAAAAAAVAAABAP//+wH//wEBAAMb/wAA+f8AAP8CAAH6AAD/Af0B//4E//////wAAAH//8cBAAEAAAEAAAH/AAUA/GIAAQCBAAEAAa/+AAAAAP//AAD/AP8AAP//AAH/of//ABD/AAH/Afn//wAAAAEA/w4A+wYA/xH/+gD6AAH+AAAAAAAB/wQAAP8A/xUBAP8B/wQAAP//4wAAAAAANQABAAD/",
+        "scale": 0.009303766,
+        "first_dimensions": "TNslO+RRULvjdvA9lwATu/GMUrvpBxQ85qMJPBZsAz1ZyL62JhVFOr5q8jsMhJK6zk6eug0XWzvA7+k6l/q7PA==",
+        "norm": 3.9082217
+      },
+      "attention": "Ji0OMAwcEzIAAACOAAEAcE8iJBEbFBwPAwIBEgAUANQFBQIuABoBqgAAAJsAAABjKDAlHBAzCRsaCQ0KIipPKk4UHR8gDBceTyklByATIQcsEhFGEBYQNEUUExQXFj0VEAYUCxs2WSA+CA0KFRZcHDILERcnFT0ifhEPEw8UFRZ/EREQDxQVF0ozDwweIB8JNA0EBgqgBwR8GBcKFhUZBogGCAYyDRsJogQGBDIHEAYAJSIlGCoiMAcDAZoBDwJIQQUYCRUGaBWuEAUHBwkiAgcBAgEoD5gmHQMEBmAHOzJEAQEBIAyIBA4BBwEeB7kLqAIDCAoHJhMfDg4aFB8eWTkFBgwmB0s2DggZBRCCFSQlEhUfECgXRqYHCQsJEA0YngAAQwQQAQiFCAMHHQM5Dw8EAwVCBWg1iQIBAgEEXw7YDgMDBwMIAVcSIkQWCgYKHjBeCgULJhRHChUEDCEwOCQAAQEBAMoObAgPFwYCLjCKAgEHBgYrNHwMCgkGBzkejQAABAEAE1lAAQICAwSpCtsLAwQFBQUDJSecCQEBAgmAAgczDQoOH8QDBAYNAg0SZBYpBRYNLAcXAQYZAQQXrJYCBgoPIR0JZwQCLTkQCBSyAwIaBBUIDQAAAAAAAP8AsQIBACoQDgPnAAAAEQEBBHsTBDghAgkKeSYYFQgEGBCsCAIHCwQTHnIGAQBABT0E2ggGAgABDwTtAgEEAQIFBGMBAABEEj0IvhYNAQ4FCgGYECQJChILA7oICg0IAw4OPRU9WwIABA5wBQISSQwdBMoHBQYFCREElwQFBxAgIgaQEwsOBCsSApQODQoDGBgSwQQEEgcHCgyrCAwEDCIJBnsJBgsIDEIU2AIAABERAwHaAQECAgYMDa4EBAQCBDEO5wABAAABEwPPAgIBBCAHAPcAAAACBAEAlAoUBQ4aHAP0AgACAAEDA6YFBgQHJRwD0gkEBQEJCQi5AQECARcjB9IHDAMCAg4GWxUJCAMcThD5AAAABAABAPgBAAAEAQAA2AgFAgUGCgL0AAAABgICAKIRBwcNExgGOw0BAQygCALQAgICAgQGHlkKDAgCC2wPxQEAAQYrBwHHAwADAQQZFBUDAgUaWmgExQUCBQoZAglDBgQEF2MpCrcNBAUDIwcE1RkIAgEEAQL5AQAAAwEBAJkoCQULHQUEfw0JAwEQTQnwBAACAwQAAtYGBQUCDQYE9QEAAgMCAQGJIQsECzcDAuINAgMACAEC+gAAAAIBAAGtAwEDAQUvFfoBAAECAAEB0hQDBQQFBAT1AQEBAgMBAegCAQQEAQYFygQCBwgGChDUCgQGBAUJBeUDAgQDAQcH9QUBAQACAAFeAgEgDEwJH+8AAAIIAQIDshYJBwQLCwvzBAECAgIBAsAAAAcOCgQcKiUfFScUNQzECAYKEAQKBu8HAgMBAQEB0QoHBgMFCgS7BQYLGQMNB/QBAgEDAQIB8wMBAwEBAQLZBAMKCgMEBAAHExsKEZId/AEBAAEAAQDDBQMRBAkJDL4VBAsFDAQI",
+      "mlp_impact": "YQ9pP5AXaj5GzlY+KZBGPlnuUj62QmQ+sTyFPlBwkT4Pb6I+m9i4Pql9Fj+MZa0+",
+      "logit_lens": [
+        {
+          "tokens": [
+            {
+              "token_id": 12080,
+              "token_text": " climb",
+              "token_bytes": "IGNsaW1i"
+            },
+            {
+              "token_id": 14281,
+              "token_text": " climbing",
+              "token_bytes": "IGNsaW1iaW5n"
+            },
+            {
+              "token_id": 19952,
+              "token_text": " climbed",
+              "token_bytes": "IGNsaW1iZWQ="
+            },
+            {
+              "token_id": 34332,
+              "token_text": " climbs",
+              "token_bytes": "IGNsaW1icw=="
+            },
+            {
+              "token_id": 39311,
+              "token_text": " climbers",
+              "token_bytes": "IGNsaW1iZXJz"
+            }
+          ],
+          "probabilities": "6jEVPzEefD7GVY89g5F7PUXWnjs="
+        },
+        {
+          "tokens": [
+            {
+              "token_id": 12080,
+              "token_text": " climb",
+              "token_bytes": "IGNsaW1i"
+            },
+            {
+              "token_id": 14281,
+              "token_text": " climbing",
+              "token_bytes": "IGNsaW1iaW5n"
+            },
+            {
+              "token_id": 2029,
+              "token_text": " above",
+              "token_bytes": "IGFib3Zl"
+            },
+            {
+              "token_id": 19952,
+              "token_text": " climbed",
+              "token_bytes": "IGNsaW1iZWQ="
+            },
+            {
+              "token_id": 6001,
+              "token_text": " height",
+              "token_bytes": "IGhlaWdodA=="
+            }
+          ],
+          "probabilities": "aPrRPhLHIT5RVp89eUcOPZmMDD0="
+        },
+        {
+          "tokens": [
+            {
+              "token_id": 2029,
+              "token_text": " above",
+              "token_bytes": "IGFib3Zl"
+            },
+            {
+              "token_id": 12080,
+              "token_text": " climb",
+              "token_bytes": "IGNsaW1i"
+            },
+            {
+              "token_id": 16046,
+              "token_text": " stairs",
+              "token_bytes": "IHN0YWlycw=="
+            },
+            {
+              "token_id": 15500,
+              "token_text": " aboard",
+              "token_bytes": "IGFib2FyZA=="
+            },
+            {
+              "token_id": 14281,
+              "token_text": " climbing",
+              "token_bytes": "IGNsaW1iaW5n"
+            }
+          ],
+          "probabilities": "DVYgPqsw9j2SQ8c95KHEPfMkqT0="
+        },
+        {
+          "tokens": [
+            {
+              "token_id": 656,
+              "token_text": " into",
+              "token_bytes": "IGludG8="
+            },
+            {
+              "token_id": 510,
+              "token_text": " up",
+              "token_bytes": "IHVw"
+            },
+            {
+              "token_id": 13532,
+              "token_text": " paths",
+              "token_bytes": "IHBhdGhz"
+            },
+            {
+              "token_id": 2029,
+              "token_text": " above",
+              "token_bytes": "IGFib3Zl"
+            },
+            {
+              "token_id": 12080,
+              "token_text": " climb",
+              "token_bytes": "IGNsaW1i"
+            }
+          ],
+          "probabilities": "FQhGPufUCD6bCcM94F+IPSB6fz0="
+        },
+        {
+          "tokens": [
+            {
+              "token_id": 656,
+              "token_text": " into",
+              "token_bytes": "IGludG8="
+            },
+            {
+              "token_id": 510,
+              "token_text": " up",
+              "token_bytes": "IHVw"
+            },
+            {
+              "token_id": 4291,
+              "token_text": " onto",
+              "token_bytes": "IG9udG8="
+            },
+            {
+              "token_id": 832,
+              "token_text": " through",
+              "token_bytes": "IHRocm91Z2g="
+            },
+            {
+              "token_id": 503,
+              "token_text": " out",
+              "token_bytes": "IG91dA=="
+            }
+          ],
+          "probabilities": "0ITdPvQuFT5m4Gk93QdVPcIl9jw="
+        },
+        {
+          "tokens": [
+            {
+              "token_id": 656,
+              "token_text": " into",
+              "token_bytes": "IGludG8="
+            },
+            {
+              "token_id": 510,
+              "token_text": " up",
+              "token_bytes": "IHVw"
+            },
+            {
+              "token_id": 4291,
+              "token_text": " onto",
+              "token_bytes": "IG9udG8="
+            },
+            {
+              "token_id": 832,
+              "token_text": " through",
+              "token_bytes": "IHRocm91Z2g="
+            },
+            {
+              "token_id": 736,
+              "token_text": " back",
+              "token_bytes": "IGJhY2s="
+            }
+          ],
+          "probabilities": "AK/0PuBRQD4q+UQ9cOUJPWHt0Dw="
+        },
+        {
+          "tokens": [
+            {
+              "token_id": 656,
+              "token_text": " into",
+              "token_bytes": "IGludG8="
+            },
+            {
+              "token_id": 736,
+              "token_text": " back",
+              "token_bytes": "IGJhY2s="
+            },
+            {
+              "token_id": 510,
+              "token_text": " up",
+              "token_bytes": "IHVw"
+            },
+            {
+              "token_id": 6364,
+              "token_text": " slowly",
+              "token_bytes": "IHNsb3dseQ=="
+            },
+            {
+              "token_id": 4291,
+              "token_text": " onto",
+              "token_bytes": "IG9udG8="
+            }
+          ],
+          "probabilities": "jASRPq55aT5R+hA+xhbTPXu+Kj0="
+        },
+        {
+          "tokens": [
+            {
+              "token_id": 656,
+              "token_text": " into",
+              "token_bytes": "IGludG8="
+            },
+            {
+              "token_id": 4291,
+              "token_text": " onto",
+              "token_bytes": "IG9udG8="
+            },
+            {
+              "token_id": 16046,
+              "token_text": " stairs",
+              "token_bytes": "IHN0YWlycw=="
+            },
+            {
+              "token_id": 510,
+              "token_text": " up",
+              "token_bytes": "IHVw"
+            },
+            {
+              "token_id": 6364,
+              "token_text": " slowly",
+              "token_bytes": "IHNsb3dseQ=="
+            }
+          ],
+          "probabilities": "B2GMPmOpWD5koS0+Rsn+PdTPVj0="
+        },
+        {
+          "tokens": [
+            {
+              "token_id": 16046,
+              "token_text": " stairs",
+              "token_bytes": "IHN0YWlycw=="
+            },
+            {
+              "token_id": 4291,
+              "token_text": " onto",
+              "token_bytes": "IG9udG8="
+            },
+            {
+              "token_id": 656,
+              "token_text": " into",
+              "token_bytes": "IGludG8="
+            },
+            {
+              "token_id": 6364,
+              "token_text": " slowly",
+              "token_bytes": "IHNsb3dseQ=="
+            },
+            {
+              "token_id": 510,
+              "token_text": " up",
+              "token_bytes": "IHVw"
+            }
+          ],
+          "probabilities": "R07OPq5zbz7L9tc9vyF7Pa/yMz0="
+        },
+        {
+          "tokens": [
+            {
+              "token_id": 4291,
+              "token_text": " onto",
+              "token_bytes": "IG9udG8="
+            },
+            {
+              "token_id": 656,
+              "token_text": " into",
+              "token_bytes": "IGludG8="
+            },
+            {
+              "token_id": 16046,
+              "token_text": " stairs",
+              "token_bytes": "IHN0YWlycw=="
+            },
+            {
+              "token_id": 26148,
+              "token_text": " upstairs",
+              "token_bytes": "IHVwc3RhaXJz"
+            },
+            {
+              "token_id": 34624,
+              "token_text": " downstairs",
+              "token_bytes": "IGRvd25zdGFpcnM="
+            }
+          ],
+          "probabilities": "7yHuPr/YcD5f+D0+TVIYPViKTDw="
+        },
+        {
+          "tokens": [
+            {
+              "token_id": 656,
+              "token_text": " into",
+              "token_bytes": "IGludG8="
+            },
+            {
+              "token_id": 4291,
+              "token_text": " onto",
+              "token_bytes": "IG9udG8="
+            },
+            {
+              "token_id": 510,
+              "token_text": " up",
+              "token_bytes": "IHVw"
+            },
+            {
+              "token_id": 866,
+              "token_text": " down",
+              "token_bytes": "IGRvd24="
+            },
+            {
+              "token_id": 736,
+              "token_text": " back",
+              "token_bytes": "IGJhY2s="
+            }
+          ],
+          "probabilities": "8XedPjUjQz4g4SY+8oLbPS/ntD0="
+        },
+        {
+          "tokens": [
+            {
+              "token_id": 510,
+              "token_text": " up",
+              "token_bytes": "IHVw"
+            },
+            {
+              "token_id": 262,
+              "token_text": " the",
+              "token_bytes": "IHRoZQ=="
+            },
+            {
+              "token_id": 656,
+              "token_text": " into",
+              "token_bytes": "IGludG8="
+            },
+            {
+              "token_id": 284,
+              "token_text": " to",
+              "token_bytes": "IHRv"
+            },
+            {
+              "token_id": 866,
+              "token_text": " down",
+              "token_bytes": "IGRvd24="
+            }
+          ],
+          "probabilities": "wZgrPi2zCz4uEqU918WkPd6Ynj0="
+        }
+      ],
+      "predictions": {
+        "tokens": [
+          {
+            "token_id": 510,
+            "token_text": " up",
+            "token_bytes": "IHVw"
+          },
+          {
+            "token_id": 262,
+            "token_text": " the",
+            "token_bytes": "IHRoZQ=="
+          },
+          {
+            "token_id": 656,
+            "token_text": " into",
+            "token_bytes": "IGludG8="
+          },
+          {
+            "token_id": 284,
+            "token_text": " to",
+            "token_bytes": "IHRv"
+          },
+          {
+            "token_id": 866,
+            "token_text": " down",
+            "token_bytes": "IGRvd24="
+          },
+          {
+            "token_id": 503,
+            "token_text": " out",
+            "token_bytes": "IG91dA=="
+          },
+          {
+            "token_id": 736,
+            "token_text": " back",
+            "token_bytes": "IGJhY2s="
+          },
+          {
+            "token_id": 625,
+            "token_text": " over",
+            "token_bytes": "IG92ZXI="
+          },
+          {
+            "token_id": 257,
+            "token_text": " a",
+            "token_bytes": "IGE="
+          },
+          {
+            "token_id": 319,
+            "token_text": " on",
+            "token_bytes": "IG9u"
+          }
+        ],
+        "probabilities": "s5crPt2vCz6+E6U9XcikPeSXnj3bBIA90Q5iPSYXHz1PPAk97wTePA=="
+      }
+    }
+  ]
+}

@@ -14,7 +14,8 @@
     "gen:types": "node scripts/gen-types.mjs",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "lighthouse": "vite build && lhci autorun"
+    "lighthouse": "vite build && lhci autorun",
+    "record:fixtures": "node scripts/record-live-fixtures.mjs"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.14.0",

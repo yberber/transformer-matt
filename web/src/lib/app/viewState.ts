@@ -1,7 +1,17 @@
 // View state lives in the query string so a URL reopens the same view (ADR 0002).
 // Unknown or missing values fall back to defaults; the language defaults to the
 // browser's, with English as fallback.
+import { MAX_CONTINUATION_TOKENS } from "../live/api";
 import { DEFAULT_EXAMPLE, EXAMPLE_IDS, EXAMPLE_STEPS, type ExampleId } from "../trace/examples";
+
+/** Example mode by default; Live mode runs the user's own Prompt on the inference server. */
+export const MODES = ["example", "live"] as const;
+export type Mode = (typeof MODES)[number];
+
+/** The last Step a run can reach: an Example's precomputed Steps, or Live mode's limit. */
+export function stepLimit(mode: Mode): number {
+  return mode === "live" ? MAX_CONTINUATION_TOKENS : EXAMPLE_STEPS;
+}
 
 /** The pipeline's stages, in order: the stations of the pipeline strip. */
 export const STAGES = ["tokenize", "embed", "blocks", "predict"] as const;
@@ -33,6 +43,8 @@ export const LANGS = ["en", "tr", "de"] as const;
 export type Lang = (typeof LANGS)[number];
 
 export interface ViewState {
+  mode: Mode;
+  /** In Live mode, the Example to return to. */
   example: ExampleId;
   view: View;
   /** Counted from 1, as the UI shows it. */
@@ -64,18 +76,21 @@ function browserLang(languages: readonly string[]): Lang {
 
 export function readViewState(search: string, languages: readonly string[]): ViewState {
   const params = new URLSearchParams(search);
+  const mode = pick(MODES, params.get("mode")) ?? "example";
   return {
+    mode,
     example: pick(EXAMPLE_IDS, params.get("example")) ?? DEFAULT_EXAMPLE,
     view: pick(VIEWS, params.get("view")) ?? "tokenize",
     layer: pickNumber(params.get("layer"), 1, LAYERS) ?? 1,
     head: pickNumber(params.get("head"), 1, HEADS) ?? 1,
-    step: pickNumber(params.get("step"), 0, EXAMPLE_STEPS) ?? 0,
+    step: pickNumber(params.get("step"), 0, stepLimit(mode)) ?? 0,
     lang: pick(LANGS, params.get("lang")) ?? browserLang(languages),
   };
 }
 
-export function viewStateQuery({ example, view, layer, head, step, lang }: ViewState): string {
+export function viewStateQuery({ mode, example, view, layer, head, step, lang }: ViewState): string {
   return new URLSearchParams({
+    mode,
     example,
     view,
     layer: String(layer),

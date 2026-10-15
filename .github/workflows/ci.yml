@@ -60,7 +60,7 @@ jobs:
         run: uv run pytest
 
   web:
-    name: Web app (typecheck, Vitest, Playwright, Lighthouse CI)
+    name: Web app (typecheck, Vitest, Playwright with the inference server, Lighthouse CI)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -84,10 +84,51 @@ jobs:
       - name: Vitest
         run: npm test
 
+      # Playwright runs Live mode against the real inference server, so this job needs
+      # the Python core and the pinned model too, from the same caches as the Python job.
+      - uses: astral-sh/setup-uv@v10.3.0
+        with:
+          working-directory: python
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Install Python dependencies
+        working-directory: python
+        run: uv sync --locked
+
+      - name: Read the pinned model revision
+        id: model
+        working-directory: python
+        run: echo "revision=$(uv run python -c 'from inside_transformer import MODEL_REVISION; print(MODEL_REVISION)')" >> "$GITHUB_OUTPUT"
+
+      - name: Cache the pinned Hugging Face model
+        id: hf-cache
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/huggingface/hub
+          key: hf-hub-${{ steps.model.outputs.revision }}
+
+      - name: Download the pinned Hugging Face model
+        if: steps.hf-cache.outputs.cache-hit != 'true'
+        working-directory: python
+        run: |
+          uv run python - <<'EOF'
+          from huggingface_hub import snapshot_download
+          from inside_transformer import MODEL_ID, MODEL_REVISION
+
+          snapshot_download(
+              MODEL_ID,
+              revision=MODEL_REVISION,
+              allow_patterns=["*config.json", "tokenizer.json", "vocab.json", "merges.txt", "model.safetensors"],
+              ignore_patterns=["onnx/*"],
+          )
+          EOF
+
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
 
-      # Includes the axe checks on every main view in both themes.
+      # Includes the axe checks on every main view in both themes, and Live mode against
+      # the real inference server (which Playwright starts) and with no server at all.
       - name: Playwright
         run: npm run test:e2e
 

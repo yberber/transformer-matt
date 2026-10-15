@@ -4,9 +4,8 @@
   // behind "Show details".
   import type { Snippet } from "svelte";
   import { route } from "../app/route.svelte";
-  import { STAGES, stageOf, type View } from "../app/viewState";
+  import { STAGES, stageOf, stepLimit, type View } from "../app/viewState";
   import { t } from "../i18n/i18n";
-  import { EXAMPLE_STEPS } from "../trace/examples";
 
   let {
     view,
@@ -35,7 +34,7 @@
   <header class="label">
     {#if number}<span class="number">{t("view.number", { n: number })}</span>{/if}
     <h2 id="view-heading">{t(`stage.${view}`)}</h2>
-    {#if showStep}<span class="number">{t("step.of", { step: route.step, steps: EXAMPLE_STEPS })}</span>{/if}
+    {#if showStep}<span class="number">{t("step.of", { step: route.step, steps: stepLimit(route.mode) })}</span>{/if}
   </header>
   <p class="lead">{@render lead()}</p>
   {@render children?.()}

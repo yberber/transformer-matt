@@ -1,0 +1,35 @@
+{
+  "tokens": [
+    {
+      "token_id": 464,
+      "token_text": "The",
+      "token_bytes": "VGhl"
+    },
+    {
+      "token_id": 46371,
+      "token_text": " lighthouse",
+      "token_bytes": "IGxpZ2h0aG91c2U="
+    },
+    {
+      "token_id": 28356,
+      "token_text": " keeper",
+      "token_bytes": "IGtlZXBlcg=="
+    },
+    {
+      "token_id": 19952,
+      "token_text": " climbed",
+      "token_bytes": "IGNsaW1iZWQ="
+    },
+    {
+      "token_id": 262,
+      "token_text": " the",
+      "token_bytes": "IHRoZQ=="
+    },
+    {
+      "token_id": 16046,
+      "token_text": " stairs",
+      "token_bytes": "IHN0YWlycw=="
+    }
+  ],
+  "count": 6
+}

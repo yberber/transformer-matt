@@ -1,10 +1,15 @@
 <script lang="ts">
-  import { route } from "./lib/app/route.svelte";
+  import { untrack } from "svelte";
+  import { navigate, route } from "./lib/app/route.svelte";
+  import { stepLimit } from "./lib/app/viewState";
   import ArchitectureView from "./lib/architecture/ArchitectureView.svelte";
   import AttentionView from "./lib/attention/AttentionView.svelte";
   import BlocksView from "./lib/blocks/BlocksView.svelte";
   import EmbeddingsView from "./lib/embed/EmbeddingsView.svelte";
   import { t } from "./lib/i18n/i18n";
+  import LivePanel from "./lib/live/LivePanel.svelte";
+  import LiveToggle from "./lib/live/LiveToggle.svelte";
+  import { live } from "./lib/live/session.svelte";
   import Masthead from "./lib/shell/Masthead.svelte";
   import PredictionView from "./lib/predict/PredictionView.svelte";
   import HowWeCalculateView from "./lib/statistics/HowWeCalculateView.svelte";
@@ -16,17 +21,45 @@
   import TokenizationView from "./lib/tokens/TokenizationView.svelte";
   import { atStep, loadExample, stepCount, type Trace } from "./lib/trace/decode";
 
-  let trace = $state<Trace>();
+  let exampleTrace = $state<Trace>();
   let failed = $state(false);
+  // Example mode shows the Example's Trace; Live mode the run held in the browser.
+  const liveMode = $derived(route.mode === "live");
+  const trace = $derived(liveMode ? live.trace : exampleTrace);
+  const limit = $derived(stepLimit(route.mode));
   // Every view sees the sequence as it stands at the current Step.
   const shown = $derived(trace && atStep(trace, route.step));
+
+  // Only Live mode calls the server: entering it checks the server, leaving it stops every call.
+  $effect(() => {
+    if (!liveMode) return;
+    untrack(() => live.activate());
+    return () => live.deactivate();
+  });
+
+  // A Live run holds only the Steps taken so far, and none once its Prompt is edited.
+  $effect(() => {
+    if (!liveMode) return;
+    const steps = live.trace ? stepCount(live.trace) : 0;
+    if (route.step > steps) navigate({ step: steps }, { replace: true });
+  });
+
+  async function runLive() {
+    if (await live.run()) navigate({ step: 0 }, { replace: true });
+  }
+
+  // Shows the new Step, unless the user moved to another Step while it was on its way.
+  async function advanceLive() {
+    const from = route.step;
+    if ((await live.advance()) && route.step === from) navigate({ step: from + 1 }, { replace: true });
+  }
 
   $effect(() => {
     const id = route.example;
     let current = true;
     failed = false;
     loadExample(id).then(
-      (loaded) => current && (trace = loaded),
+      (loaded) => current && (exampleTrace = loaded),
       (error: unknown) => {
         console.error(error);
         if (current) failed = true;
@@ -44,8 +77,21 @@
   <Masthead />
   <main>
     <div class="bench">
-      <ExamplePicker />
-      {#if trace}<StepControls steps={stepCount(trace)} />{/if}
+      <LiveToggle />
+      {#if liveMode}
+        <LivePanel onrun={runLive} />
+      {:else}
+        <ExamplePicker />
+      {/if}
+      {#if trace}
+        <StepControls
+          steps={stepCount(trace)}
+          {limit}
+          endMessage={liveMode ? t("live.end", { steps: limit }) : t("step.end", { steps: limit })}
+          onadvance={liveMode && live.status === "ready" ? advanceLive : undefined}
+          advancing={liveMode && live.busy}
+        />
+      {/if}
       <PageLinks />
     </div>
     <PipelineStrip trace={shown} />
@@ -55,7 +101,9 @@
     {:else if route.view === "calculate"}
       <!-- The formulas are the same for every text, so they need no Trace either. -->
       <HowWeCalculateView />
-    {:else if failed}
+    {:else if liveMode && !trace}
+      <p class="empty">{t("live.empty")}</p>
+    {:else if failed && !liveMode}
       <p role="alert">{t("view.loadError")}</p>
     {:else if !shown}
       <p role="status">{t("view.loading")}</p>
@@ -68,7 +116,7 @@
     {:else if route.view === "attention"}
       <AttentionView trace={shown} />
     {:else if route.view === "predict"}
-      <PredictionView trace={shown} canAdvance={route.step < stepCount(trace!)} />
+      <PredictionView trace={shown} canAdvance={route.step < limit} />
     {:else if route.view === "statistics"}
       <StatisticsView trace={shown} />
     {/if}
@@ -80,6 +128,11 @@
     max-width: 68rem;
     margin: 0 auto;
     padding: 0 1rem;
+  }
+  .empty {
+    margin: 2rem 0 4rem;
+    font-style: italic;
+    color: var(--ink-secondary);
   }
   .bench {
     display: flex;
