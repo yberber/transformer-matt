@@ -54,7 +54,8 @@ jobs:
           EOF
 
       # Includes the schema drift check (committed schema vs the Pydantic export)
-      # and the byte-identical regeneration check on the committed Example files.
+      # and the check that regeneration reproduces the committed Example files (exact
+      # tokens and shapes, floats within the verification tolerances).
       - name: pytest
         run: uv run pytest
 

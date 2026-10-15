@@ -30,7 +30,7 @@ npm run build      # static build in web/dist
 ## Test
 
 ```sh
-cd python && uv run pytest     # Example files vs an independent Hugging Face greedy run, selection rules, byte-identical regeneration, size budget, schema drift
+cd python && uv run pytest     # Example files vs an independent Hugging Face greedy run, selection rules, regeneration reproduces the committed files, size budget, schema drift
 
 cd web
 npm run check                  # typecheck (svelte-check)
@@ -47,7 +47,7 @@ View state (`example`, `view`, `step`, `lang`) lives in the query string, so a U
 
 ## CI
 
-[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on every push. One job runs pytest, whose checks include schema drift and byte-identical regeneration. The other runs the typecheck, Vitest and Playwright. Python dependencies come from `uv sync --locked` and web dependencies from `npm ci`, with Node at the `.nvmrc` version. The pinned GPT-2 model is cached between runs under a key that contains its revision.
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on every push. One job runs pytest, whose checks include schema drift and the check that regenerating reproduces the committed Example data. The other runs the typecheck, Vitest and Playwright. Python dependencies come from `uv sync --locked` and web dependencies from `npm ci`, with Node at the `.nvmrc` version. The pinned GPT-2 model is cached between runs under a key that contains its revision.
 
 The workflow only runs once the repo has a GitHub remote. Add one and push (`git remote add origin <url> && git push -u origin main`) to start it.
 
@@ -58,7 +58,7 @@ cd python
 uv run regenerate
 ```
 
-This rewrites every Example file under `web/public/data/examples/` (each Prompt plus 16 greedy Steps) and copies the pinned model config to `web/public/data/gpt2-config.json`. Regeneration is deterministic: running it again must produce byte-identical files, and `uv run pytest` checks that. Commit the regenerated files.
+This rewrites every Example file under `web/public/data/examples/` (each Prompt plus 16 greedy Steps) and copies the pinned model config to `web/public/data/gpt2-config.json`. Regeneration must reproduce the committed files, and `uv run pytest` checks that. Tokens, token IDs, headers and shapes must match exactly. Float32 values must match within the verification tolerances (probabilities within 1e-4), and near-tied predictions may swap ranks. Their last bits differ between CPUs: the committed files were generated on macOS arm64, and CI runs Linux x86_64. On the same machine, regeneration is byte-identical. Commit the regenerated files.
 
 ### Choose the Examples
 

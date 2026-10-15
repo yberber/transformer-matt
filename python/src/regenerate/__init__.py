@@ -1,6 +1,7 @@
 """Regenerates every Example file, and the pinned model config, into the web app's data.
 
-Run with `uv run regenerate`. Output must be byte-identical across runs.
+Run with `uv run regenerate`. Output is byte-identical across runs on one machine;
+across CPUs, float32 values may differ in their last bits (pytest allows for that).
 """
 
 import shutil

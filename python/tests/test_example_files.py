@@ -4,6 +4,7 @@ import base64
 import json
 import struct
 
+import brotli
 import pytest
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -16,6 +17,9 @@ MODEL_REVISION = "607a30d783dfa663caf39e06633721c8d4cfcd7e"
 ENDOFTEXT_ID = 50256
 TOP_K = 10
 STEPS = 16
+# Float32 results differ in their last bits between CPUs (the committed files come
+# from macOS arm64, CI runs Linux x86_64), so floats are compared within the
+# spec's verification tolerances, never bit for bit.
 PROBABILITY_TOLERANCE = 1e-4
 
 # The spec's selection rules, restated. The margin was lowered from 0.05 to 1e-3 so
@@ -52,9 +56,11 @@ def reference_run(reference_tokenizer, reference_model):
                     next_logits = reference_model(torch.tensor([token_ids])).logits[0, -1]
                     token_ids.append(int(next_logits.argmax()))
                 logits = reference_model(torch.tensor([token_ids])).logits[0]
-            top = torch.softmax(logits, dim=-1).topk(TOP_K, dim=-1)
+            probabilities = torch.softmax(logits, dim=-1)
+            top = probabilities.topk(TOP_K, dim=-1)
             runs[example.id] = {
                 "token_ids": token_ids,
+                "probabilities": probabilities,
                 "top_ids": top.indices.tolist(),
                 "top_probabilities": top.values.tolist(),
             }
@@ -66,6 +72,62 @@ def reference_run(reference_tokenizer, reference_model):
 def float32s(encoded: str) -> list[float]:
     raw = base64.b64decode(encoded, validate=True)
     return list(struct.unpack(f"<{len(raw) // 4}f", raw))
+
+
+def assert_same_top_tokens(actual_ids, actual_probabilities, expected_ids, expected_probabilities, probability_of):
+    """The actual top tokens match the expected ones up to ties.
+
+    Probabilities match rank by rank within the tolerance. Token IDs match rank by
+    rank too, except that tokens whose probabilities lie within the tolerance of
+    each other may swap places: such near-ties (some are below 1e-6) order
+    differently on different CPUs. `probability_of(token_id)` is the expected
+    side's probability of any token, or None when it is outside the expected top
+    tokens, which a swapped-in token may only be if it ties with the cut-off.
+    """
+    assert len(actual_ids) == len(set(actual_ids)) == len(expected_ids)
+    assert actual_probabilities == pytest.approx(expected_probabilities, abs=PROBABILITY_TOLERANCE)
+    for rank, (actual, expected, probability) in enumerate(
+        zip(actual_ids, expected_ids, actual_probabilities), start=1
+    ):
+        if actual == expected:
+            continue
+        expected_probability = probability_of(actual)
+        if expected_probability is None:
+            expected_probability = expected_probabilities[-1]
+        assert abs(probability - expected_probability) <= PROBABILITY_TOLERANCE, (
+            f"token {actual} at rank {rank} instead of {expected}, and not a near-tie"
+        )
+
+
+def assert_same_trace(actual: dict, expected: dict) -> None:
+    """Two Traces agree: everything exact except floats, which match within the
+    verification tolerances, and the order of near-tied predictions."""
+    assert actual["header"] == expected["header"]
+    assert actual["prompt_length"] == expected["prompt_length"]
+    assert len(actual["positions"]) == len(expected["positions"])
+    for actual_position, expected_position in zip(actual["positions"], expected["positions"]):
+        assert actual_position.keys() == expected_position.keys() == {
+            "token_id", "token_text", "token_bytes", "predictions"
+        }
+        for field in ("token_id", "token_text", "token_bytes"):
+            assert actual_position[field] == expected_position[field]
+
+        actual_tokens = actual_position["predictions"]["tokens"]
+        expected_tokens = expected_position["predictions"]["tokens"]
+        expected_probabilities = float32s(expected_position["predictions"]["probabilities"])
+        expected_by_id = dict(zip((t["token_id"] for t in expected_tokens), expected_probabilities))
+        assert_same_top_tokens(
+            [t["token_id"] for t in actual_tokens],
+            float32s(actual_position["predictions"]["probabilities"]),
+            [t["token_id"] for t in expected_tokens],
+            expected_probabilities,
+            expected_by_id.get,
+        )
+        # A token ID always comes with the same text and bytes.
+        tokens_by_id = {t["token_id"]: t for t in expected_tokens}
+        for token in actual_tokens:
+            if token["token_id"] in tokens_by_id:
+                assert token == tokens_by_id[token["token_id"]]
 
 
 def read_example(example_id: str) -> dict:
@@ -105,17 +167,21 @@ def test_each_position_carries_the_top_10_next_token_predictions(example, refere
     positions = read_example(example.id)["positions"]
     assert len(positions) == len(expected["top_ids"])
 
-    for position, top_ids, top_probabilities in zip(
-        positions, expected["top_ids"], expected["top_probabilities"]
+    for position, probabilities, top_ids, top_probabilities in zip(
+        positions, expected["probabilities"], expected["top_ids"], expected["top_probabilities"]
     ):
         predictions = position["predictions"]
-        assert [t["token_id"] for t in predictions["tokens"]] == top_ids
-        assert [t["token_text"] for t in predictions["tokens"]] == [
-            reference_tokenizer.decode([i]) for i in top_ids
-        ]
-        assert float32s(predictions["probabilities"]) == pytest.approx(
-            top_probabilities, abs=PROBABILITY_TOLERANCE
+        ids = [t["token_id"] for t in predictions["tokens"]]
+        assert_same_top_tokens(
+            ids,
+            float32s(predictions["probabilities"]),
+            top_ids,
+            top_probabilities,
+            lambda token_id: float(probabilities[token_id]),
         )
+        assert [t["token_text"] for t in predictions["tokens"]] == [
+            reference_tokenizer.decode([i]) for i in ids
+        ]
 
 
 def test_there_are_two_examples_in_each_length_band():
@@ -179,13 +245,22 @@ def test_header_names_the_pinned_model_and_its_config(example):
     }
 
 
-def test_regenerating_produces_byte_identical_files(tmp_path):
+def test_regenerating_reproduces_the_committed_files(tmp_path):
     write_data(tmp_path)
 
     def snapshot(root):
         return {p.relative_to(root): p.read_bytes() for p in sorted(root.rglob("*")) if p.is_file()}
 
-    assert snapshot(tmp_path) == snapshot(DATA_DIR)
+    regenerated, committed = snapshot(tmp_path), snapshot(DATA_DIR)
+    assert regenerated.keys() == committed.keys()
+    for path, content in committed.items():
+        if path.name.endswith(".json.br"):
+            # The brotli file is exactly the readable file, compressed.
+            assert brotli.decompress(content) == committed[path.with_suffix("")], path
+        elif path.parent.name == "examples":
+            assert_same_trace(json.loads(regenerated[path]), json.loads(content))
+        else:
+            assert regenerated[path] == content, path
 
 
 @pytest.mark.parametrize("example", EXAMPLES, ids=lambda e: e.id)

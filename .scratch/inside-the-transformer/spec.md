@@ -140,7 +140,7 @@ Alongside the pipeline, an architecture view shows the whole model with shapes a
 ### Maintainers and operators
 
 84. As a maintainer, I want one script that regenerates all Example data from the pinned reference model, so that data can be rebuilt reproducibly.
-85. As a maintainer, I want regeneration to produce byte-identical files, so that drift is detectable.
+85. As a maintainer, I want regeneration to reproduce the committed files (exact tokens and shapes, floats within the verification tolerances), so that drift is detectable.
 86. As a maintainer, I want the six Examples chosen by explicit, checked rules, so that their selection is reproducible and justified.
 87. As a maintainer, I want the API contract committed and checked on both sides, so that frontend and backend cannot drift apart silently.
 88. As an operator, I want to deploy frontend and backend to one VM with Docker Compose, so that hosting is simple.
@@ -223,8 +223,8 @@ Alongside the pipeline, an architecture view shows the whole model with shapes a
 - The codebase is greenfield, so there is no prior art; these five seams establish it.
 
 1. **Committed Example files** (pytest):
-   - An independent Hugging Face run (plain `model(...)` plus a greedy argmax loop, not using the core) must match each file: identical tokens, probabilities within 1e-4, attention within 1/510, first 16 embedding dimensions within 1e-6.
-   - Regenerating produces byte-identical files.
+   - An independent Hugging Face run (plain `model(...)` plus a greedy argmax loop, not using the core) must match each file: identical tokens (top-10 predictions whose probabilities are within 1e-4 of each other may swap ranks), probabilities within 1e-4, attention within 1/510, first 16 embedding dimensions within 1e-6.
+   - Regenerating reproduces the committed files: tokens, token IDs, headers and shapes exactly; float values within the tolerances above; near-tied top-10 predictions (probabilities within 1e-4 of each other) may swap ranks. (Changed 2026-10-15 from "byte-identical": float32 bits differ between the macOS files and the Linux CI run.)
    - Each file is under 300 KB brotli-compressed.
    - Each Example satisfies the selection rules (length band, no repeated 3-gram, minimum margin 0.001).
 2. **HTTP API** (pytest against the FastAPI app with the real model):
