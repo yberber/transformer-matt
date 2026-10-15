@@ -8,7 +8,7 @@ export const STAGES = ["tokenize", "embed", "blocks", "predict"] as const;
 export type Stage = (typeof STAGES)[number];
 
 /** The separate pages about the whole model, outside the pipeline and the same at every Step. */
-export const PAGES = ["architecture"] as const;
+export const PAGES = ["architecture", "statistics", "calculate"] as const;
 export type Page = (typeof PAGES)[number];
 
 /** Every view: the stages; attention, which opens up one layer and head of Blocks; and the pages. */

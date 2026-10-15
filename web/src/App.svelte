@@ -7,6 +7,8 @@
   import { t } from "./lib/i18n/i18n";
   import Masthead from "./lib/shell/Masthead.svelte";
   import PredictionView from "./lib/predict/PredictionView.svelte";
+  import HowWeCalculateView from "./lib/statistics/HowWeCalculateView.svelte";
+  import StatisticsView from "./lib/statistics/StatisticsView.svelte";
   import ExamplePicker from "./lib/shell/ExamplePicker.svelte";
   import PageLinks from "./lib/shell/PageLinks.svelte";
   import PipelineStrip from "./lib/shell/PipelineStrip.svelte";
@@ -50,6 +52,9 @@
     {#if route.view === "architecture"}
       <!-- The architecture is the same for every Example and Step, so it needs no Trace. -->
       <ArchitectureView header={trace?.header} />
+    {:else if route.view === "calculate"}
+      <!-- The formulas are the same for every text, so they need no Trace either. -->
+      <HowWeCalculateView />
     {:else if failed}
       <p role="alert">{t("view.loadError")}</p>
     {:else if !shown}
@@ -64,6 +69,8 @@
       <AttentionView trace={shown} />
     {:else if route.view === "predict"}
       <PredictionView trace={shown} canAdvance={route.step < stepCount(trace!)} />
+    {:else if route.view === "statistics"}
+      <StatisticsView trace={shown} />
     {/if}
   </main>
 </div>

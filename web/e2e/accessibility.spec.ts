@@ -9,6 +9,8 @@ const MAIN_VIEWS = [
   "/?example=village&view=predict&step=5&lang=en",
   "/?example=village&view=attention&layer=5&head=12&step=5&lang=en",
   "/?example=village&view=architecture&lang=en",
+  "/?example=village&view=statistics&step=5&lang=en",
+  "/?example=village&view=calculate&lang=en",
 ];
 
 // Each theme as the system setting gives it, and as the toggle picks it against the

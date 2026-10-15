@@ -8,11 +8,25 @@
   import { t } from "../i18n/i18n";
   import { EXAMPLE_STEPS } from "../trace/examples";
 
-  let { view, lead, children, details }: { view: View; lead: Snippet; children?: Snippet; details: Snippet } =
-    $props();
+  let {
+    view,
+    atStep,
+    lead,
+    children,
+    details,
+  }: {
+    view: View;
+    /** Whether the view shows the text at the current Step; by default, only the pipeline's views do. */
+    atStep?: boolean;
+    lead: Snippet;
+    children?: Snippet;
+    details: Snippet;
+  } = $props();
 
-  // A separate page sits outside the pipeline and is the same at every Step, so it carries neither label.
+  // A separate page sits outside the pipeline, so it carries no stage number, and unless it
+  // says otherwise it is the same at every Step.
   const stage = $derived(stageOf(view));
+  const showStep = $derived(atStep ?? stage !== undefined);
   const number = $derived(stage && String(STAGES.indexOf(stage) + 1).padStart(2, "0"));
 </script>
 
@@ -21,7 +35,7 @@
   <header class="label">
     {#if number}<span class="number">{t("view.number", { n: number })}</span>{/if}
     <h2 id="view-heading">{t(`stage.${view}`)}</h2>
-    {#if stage}<span class="number">{t("step.of", { step: route.step, steps: EXAMPLE_STEPS })}</span>{/if}
+    {#if showStep}<span class="number">{t("step.of", { step: route.step, steps: EXAMPLE_STEPS })}</span>{/if}
   </header>
   <p class="lead">{@render lead()}</p>
   {@render children?.()}
