@@ -1,0 +1,75 @@
+# Serves the static build and proxies /api to the inference server.
+#
+# SITE_ADDRESS is the one deploy setting: ":80" (the default) serves plain HTTP on any
+# address, the VM's IP included; a domain such as "example.com" makes Caddy fetch and
+# renew a TLS certificate for it and redirect HTTP to HTTPS.
+# SITE_ROOT and API_UPSTREAM are set for the container and only change for a local run.
+
+# User text must never be logged (ADR 0002). Of each request, a log keeps the method
+# and the path without its query, and drops everything else, client IPs and headers included.
+(request_fields) {
+	request>uri regexp "\?.*" ""
+	request>remote_ip delete
+	request>remote_port delete
+	request>client_ip delete
+	request>proto delete
+	request>host delete
+	request>headers delete
+	request>tls delete
+}
+
+{
+	admin off
+	# Errors (a 502 while the API starts, say) are logged with their request too.
+	log default {
+		exclude http.log.error
+	}
+	log errors {
+		include http.log.error
+		format filter {
+			wrap json
+			fields {
+				import request_fields
+			}
+		}
+	}
+}
+
+{$SITE_ADDRESS::80} {
+	root * {$SITE_ROOT:/srv}
+
+	# The web app calls /api/<endpoint>; the server's endpoints have no prefix.
+	# reverse_proxy sets X-Forwarded-For to the client's IP, replacing whatever the
+	# client sent, and the rate limits key on it.
+	handle_path /api/* {
+		encode zstd gzip
+		reverse_proxy {$API_UPSTREAM:api:8000}
+	}
+
+	handle {
+		# The build ships .br and .gz files next to each text file.
+		file_server {
+			precompressed br gzip
+		}
+	}
+
+	# The access log: method, path without query, status and timing.
+	log {
+		output stdout
+		format filter {
+			wrap json {
+				level_key ""
+				name_key ""
+				message_key ""
+				time_format rfc3339
+			}
+			fields {
+				import request_fields
+				bytes_read delete
+				user_id delete
+				size delete
+				resp_headers delete
+			}
+		}
+	}
+}

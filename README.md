@@ -11,6 +11,7 @@ A website that shows curious non-experts how GPT-2 small turns a piece of text i
 | `contract/api.schema.json` | The committed contract schema for the inference server's requests and responses, exported the same way. |
 | `web/` | The web app (Svelte 5, Vite, TypeScript). |
 | `web/public/data/` | Generated Example files (readable `.json` and brotli `.json.br`) and the pinned GPT-2 config. |
+| `compose.yaml`, `deploy/`, `*/Dockerfile` | The deployment: Docker Compose with Caddy (`web/Dockerfile`, `deploy/Caddyfile`) and the inference server (`python/Dockerfile`), and the deploy smoke test (`deploy/smoke_test.py`). |
 
 ## Prerequisites
 
@@ -99,6 +100,77 @@ View state (`mode`, `example`, `view`, `layer`, `head`, `step`, `lang`) lives in
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on every push. One job runs pytest, whose checks include schema drift and the check that regenerating reproduces the committed Example data. The other runs the typecheck, Vitest, Playwright (with the axe checks, and with the real inference server, so it installs the Python core and the cached model too) and Lighthouse CI, and uploads the Lighthouse reports when a step fails. Python dependencies come from `uv sync --locked` and web dependencies from `npm ci`, with Node at the `.nvmrc` version. The pinned GPT-2 model is cached between runs under a key that contains its revision.
 
 The workflow only runs once the repo has a GitHub remote. Add one and push (`git remote add origin <url> && git push -u origin main`) to start it.
+
+## Deploy
+
+The whole site runs on one VM, an Oracle Cloud Ampere A1 (arm64) by assumption, with Docker Compose ([`compose.yaml`](compose.yaml)) running two services:
+
+- `caddy` serves the static build and proxies `/api/*` to the inference server with the prefix removed. Its image (`web/Dockerfile`) builds the web app in a Node stage, writes a brotli and a gzip copy of every text file (`npm run precompress`), and serves those precompressed. It compresses API responses with zstd or gzip on the fly. Its config is [`deploy/Caddyfile`](deploy/Caddyfile), mounted from the repo.
+- `api` is the inference server (`python/Dockerfile`), built for arm64 from `uv.lock` with the GPT-2 model at the pinned revision baked in. It runs offline. It publishes no port, so Caddy is the only way in, and it trusts `X-Forwarded-For` only from Caddy's fixed address on the Compose network. Caddy sets that header to the client's IP and replaces whatever the client sent, so each client gets its own rate limits.
+
+The VM needs only Docker and git, with no Node, uv or model download. Caddy's access log keeps one JSON line per request with the time, method, path without query, status and duration, and nothing else: no client IP, no headers, no query string, no body. Its error log keeps the same request fields. Logs are rotated (5 × 10 MB per container).
+
+### First deploy, on the VM's IP over HTTP
+
+1. Create an Ampere A1 instance with Ubuntu 24.04. In the VCN's security list (or the instance's network security group), add ingress rules for TCP 80 and 443, and UDP 443 for HTTP/3.
+2. Oracle's Ubuntu images also reject all incoming traffic but SSH in iptables. On the VM, accept 80 and 443 ahead of the `REJECT` rule (`sudo iptables -L INPUT --line-numbers` shows its position) and save the rules:
+
+   ```sh
+   sudo iptables -I INPUT 6 -m state --state NEW -p tcp --dport 80 -j ACCEPT
+   sudo iptables -I INPUT 6 -m state --state NEW -p tcp --dport 443 -j ACCEPT
+   sudo iptables -I INPUT 6 -m state --state NEW -p udp --dport 443 -j ACCEPT
+   sudo netfilter-persistent save
+   ```
+
+3. Install Docker with its Compose plugin and let your user run it (log out and back in afterwards):
+
+   ```sh
+   curl -fsSL https://get.docker.com | sudo sh
+   sudo usermod -aG docker "$USER"
+   ```
+
+4. Clone the repo and start the site:
+
+   ```sh
+   git clone <repo URL> inside-the-transformer
+   cd inside-the-transformer
+   docker compose up -d --build
+   ```
+
+   The first build downloads torch and the model, which takes a few minutes. The site is then at `http://<the VM's public IP>`. `docker compose ps` shows `api` as healthy once the model has loaded. Until then Live mode says the model is loading.
+
+5. Check the deploy from the VM:
+
+   ```sh
+   python3 deploy/smoke_test.py http://localhost
+   ```
+
+   It checks that static files come precompressed (brotli and gzip), that `/api` answers with zstd and gzip, and that the access log holds only method, path, status and timing, with no query string, header or Prompt text. It also checks that a client can't dodge the rate limits by sending its own `X-Forwarded-For`. To check that from outside, run it on your own machine and read the log over SSH: `python3 deploy/smoke_test.py http://<IP> --access-log-command "ssh ubuntu@<IP> 'cd inside-the-transformer && docker compose logs --no-log-prefix caddy'"`. The last check uses up the tokenize limit, so that client can't use Live mode for a minute afterwards.
+
+The smoke test also runs without Docker, against a [Caddy binary](https://caddyserver.com/download), the local server (`uv run serve`) and `web/dist` after `npm run build && npm run precompress`. `--second-url` reaches the same Caddy from another client address and checks that it has its own rate limit:
+
+```sh
+SITE_ADDRESS=:8080 SITE_ROOT="$PWD/web/dist" API_UPSTREAM=127.0.0.1:8000 caddy run --config deploy/Caddyfile >caddy.log 2>&1 &
+python3 deploy/smoke_test.py http://127.0.0.1:8080 --second-url 'http://[::1]:8080' --access-log-command 'cat caddy.log'
+```
+
+To update, run `git pull && docker compose up -d --build`. To read the logs, run `docker compose logs caddy` or `docker compose logs api`.
+
+### Add a domain later
+
+`SITE_ADDRESS` is the one setting. Its default `:80` serves plain HTTP on any address, the VM's IP included. To switch to a domain:
+
+1. Point the domain's DNS `A` record at the VM's public IP.
+2. Next to `compose.yaml`, set the address in `.env` (git ignores this file) and recreate Caddy:
+
+   ```sh
+   echo 'SITE_ADDRESS=example.com' > .env
+   docker compose up -d
+   ```
+
+Caddy then gets a Let's Encrypt certificate for the domain, renews it, and redirects HTTP to HTTPS. Ports 80 and 443 must be reachable from the internet for that. Certificates persist in the `caddy_data` volume. Several names work too (`SITE_ADDRESS="example.com, www.example.com"`). Remove the line to go back to plain HTTP on the IP. No code changes either way.
+
+The images are built for `linux/arm64`. To deploy on an x86 VM, set `x-platform` in `compose.yaml` to `linux/amd64`, since `uv.lock` has the wheels for both. The Compose network uses the fixed subnet `172.30.0.0/24`, so that the API can trust Caddy's address. If that subnet clashes with another network on the VM, change it, Caddy's `x-caddy-address` and nothing else. The network is IPv4 only. IPv4 clients reach Caddy with their own address, as Oracle VCNs are by default. If the VM is also given an IPv6 address, Docker's proxy would hand Caddy every IPv6 client under one gateway address, and those clients would share one rate limit.
 
 ## Regenerate Example data
 

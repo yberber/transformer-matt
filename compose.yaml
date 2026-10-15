@@ -1,0 +1,66 @@
+# The whole site on one VM: Caddy serves the static build and proxies /api to the
+# inference server. Deploy with `docker compose up -d --build` (see the README).
+name: inside-the-transformer
+
+# The VM is an Ampere A1, so the images are built for arm64.
+x-platform: &platform linux/arm64
+# Caddy's fixed address on the site network, the one proxy the API trusts.
+x-caddy-address: &caddy-address 172.30.0.2
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "5"
+
+services:
+  caddy:
+    build: ./web
+    platform: *platform
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      # Plain HTTP on the VM's IP by default; a domain turns on automatic TLS.
+      # Set it in a .env file next to this one: SITE_ADDRESS=example.com
+      SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data # TLS certificates
+      - caddy_config:/config
+    networks:
+      site:
+        ipv4_address: *caddy-address
+    depends_on:
+      - api
+    logging: *logging
+
+  api:
+    build: ./python
+    platform: *platform
+    restart: unless-stopped
+    environment:
+      # Only Caddy may say whose request it forwards. The API publishes no port, so
+      # Caddy is the only way in.
+      TRUSTED_PROXIES: *caddy-address
+    networks:
+      - site
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      start_period: 120s
+      start_interval: 2s
+    logging: *logging
+
+networks:
+  site:
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24
+
+volumes:
+  caddy_data:
+  caddy_config:
