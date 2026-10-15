@@ -1,0 +1,3 @@
+# One Python core; the Trace is both the Example file format and the API contract
+
+The offline regeneration script and the live inference server call the same Python package to tokenize, run GPT-2 and build Traces, and an Example file is byte-for-byte the same shape as a live API response (header plus position records). We chose this over separate pipelines so that "Live mode returns the same tokens and probabilities as Example mode" and "visualizations behave the same in both modes" hold by construction, and the frontend has a single decoding path. The cost is that the Example file format cannot evolve independently of the API: any change to one is a contract change for both, guarded by the committed schema.
