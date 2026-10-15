@@ -36,12 +36,12 @@
 
 <div class="page">
   <Masthead />
-  <div class="bench">
-    <ExamplePicker />
-    {#if trace}<StepControls steps={stepCount(trace)} />{/if}
-  </div>
-  <PipelineStrip trace={shown} />
   <main>
+    <div class="bench">
+      <ExamplePicker />
+      {#if trace}<StepControls steps={stepCount(trace)} />{/if}
+    </div>
+    <PipelineStrip trace={shown} />
     {#if failed}
       <p role="alert">{t("view.loadError")}</p>
     {:else if !shown}

@@ -36,8 +36,23 @@ cd web
 npm run check                  # typecheck (svelte-check)
 npm test                       # Vitest: Example files validate against the committed schema and match the web app's Example list; generated types are current; every translation key exists in all three languages
 npx playwright install chromium   # once
-npm run test:e2e               # Playwright against the built site
+npm run test:e2e               # Playwright against the built site, including the axe checks
+npm run lighthouse             # Lighthouse CI on the built site: performance at least 90, initial page load under 2 MB
 ```
+
+The axe checks in `web/e2e/accessibility.spec.ts` run on every main view in the light and the dark theme, both as the system setting gives them and as the theme toggle picks them, with every "Show details" open, and fail on any violation. To add a view, add its URL to `MAIN_VIEWS` in that file:
+
+```ts
+const MAIN_VIEWS = [
+  "/?example=village&view=tokenize&step=5&lang=en",
+  // …
+  "<the new view's URL>",
+];
+```
+
+The checks run at the desktop viewport, so a layout that exists only on narrow screens needs its own test.
+
+Lighthouse CI (`web/lighthouserc.cjs`) runs in Example mode on the landing page and on the longest Example, three times each, and checks the median run. It uses Lighthouse's default mobile emulation and throttling, and Playwright's Chromium, so `npx playwright install chromium` covers it too. Reports land in `web/.lighthouseci/reports`.
 
 ## UI text and languages
 
@@ -47,7 +62,7 @@ View state (`example`, `view`, `step`, `lang`) lives in the query string, so a U
 
 ## CI
 
-[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on every push. One job runs pytest, whose checks include schema drift and the check that regenerating reproduces the committed Example data. The other runs the typecheck, Vitest and Playwright. Python dependencies come from `uv sync --locked` and web dependencies from `npm ci`, with Node at the `.nvmrc` version. The pinned GPT-2 model is cached between runs under a key that contains its revision.
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on every push. One job runs pytest, whose checks include schema drift and the check that regenerating reproduces the committed Example data. The other runs the typecheck, Vitest, Playwright (with the axe checks) and Lighthouse CI, and uploads the Lighthouse reports when a step fails. Python dependencies come from `uv sync --locked` and web dependencies from `npm ci`, with Node at the `.nvmrc` version. The pinned GPT-2 model is cached between runs under a key that contains its revision.
 
 The workflow only runs once the repo has a GitHub remote. Add one and push (`git remote add origin <url> && git push -u origin main`) to start it.
 

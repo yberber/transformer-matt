@@ -60,7 +60,7 @@ jobs:
         run: uv run pytest
 
   web:
-    name: Web app (typecheck, Vitest, Playwright)
+    name: Web app (typecheck, Vitest, Playwright, Lighthouse CI)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -87,6 +87,19 @@ jobs:
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
 
+      # Includes the axe checks on every main view in both themes.
       - name: Playwright
         run: npm run test:e2e
+
+      # Example mode: performance score at least 90, initial page load under 2 MB.
+      - name: Lighthouse CI
+        run: npm run lighthouse
+
+      - name: Upload Lighthouse reports
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: lighthouse-reports
+          path: web/.lighthouseci/reports
+          if-no-files-found: ignore
 
