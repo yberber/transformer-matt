@@ -158,6 +158,63 @@ test("how we calculate documents every formula and what is left out, in every la
   await expect(page.getByText("247.064.064 + 36.864 · n")).toBeVisible();
 });
 
+// Worked out by hand, as above. In one layer a token reading n Positions costs 3,538,944 for
+// the fused QKV, 1,536n each for the attention scores and the weighted sum, 1,179,648 for the
+// output projection and 9,437,184 for the MLP: 14,155,776 + 3,072n. Through the whole model,
+// decode(n) = 247,064,064 + 36,864n and prefill(n) = 247,064,064n + 36,864 · n(n+1)/2; the KV
+// cache holds 73,728n bytes.
+//   n = 17 (the village text at Step 5): scores 26,112, one layer 14,208,000,
+//     decode 247,690,752, prefill 4,205,729,280 (247,395,840 per token), KV cache 1,253,376 bytes;
+//     the next token reads 18 Positions: decode(18) = 247,727,616;
+//   n = 1024: scores 1,572,864, one layer 17,301,504, decode 284,812,800,
+//     prefill 272,339,828,736 (265,956,864 per token), KV cache 75,497,472 bytes; no next token
+//     fits, as 1024 is n_positions;
+//   n = 1023: decode 284,775,936, KV cache 75,423,744 bytes.
+test("explore the formulas at any context length", async ({ page }) => {
+  await page.goto("/?example=village&view=calculate&step=5&lang=en");
+  const slider = page.getByRole("slider", { name: "Context length n" });
+  const perLayer = page.getByRole("table", { name: "One token, in one layer" });
+
+  // It starts at this text's length and says so in words.
+  await expect(slider).toHaveValue("17");
+  await expect(slider).toHaveAttribute("aria-valuetext", "17 Positions");
+  await expect(perLayer.getByRole("columnheader", { name: "At n = 17" })).toBeVisible();
+  await expect(perLayer.getByRole("row", { name: /^Fused QKV/ })).toContainText("3,538,944");
+  await expect(perLayer.getByRole("row", { name: /^Attention scores/ })).toContainText("26,112");
+  await expect(perLayer.getByRole("row", { name: /^One layer/ })).toContainText("14,208,000");
+  await expect(page.getByText("decode(17) = 247,690,752", { exact: true })).toBeVisible();
+  await expect(page.getByText("prefill(17) = 4,205,729,280", { exact: true })).toBeVisible();
+  await expect(page.getByText("prefill(17) / 17 = 247,395,840", { exact: true })).toBeVisible();
+  await expect(page.getByText("P + s = 17: prefill(17) = 4,205,729,280", { exact: true })).toBeVisible();
+  await expect(page.getByText("P + s + 1 = 18: decode(18) = 247,727,616", { exact: true })).toBeVisible();
+  await expect(page.getByText("n = 17: 1,253,376 bytes (1.25 MB)", { exact: true })).toBeVisible();
+
+  // The keyboard moves it, and every value follows.
+  await slider.focus();
+  await page.keyboard.press("End");
+  await expect(slider).toHaveAttribute("aria-valuetext", "1,024 Positions");
+  await expect(perLayer.getByRole("row", { name: /^Attention scores/ })).toContainText("1,572,864");
+  await expect(perLayer.getByRole("row", { name: /^One layer/ })).toContainText("17,301,504");
+  await expect(page.getByText("decode(1,024) = 284,812,800", { exact: true })).toBeVisible();
+  await expect(page.getByText("prefill(1,024) = 272,339,828,736", { exact: true })).toBeVisible();
+  await expect(page.getByText("prefill(1,024) / 1,024 = 265,956,864", { exact: true })).toBeVisible();
+  await expect(page.getByText("P + s = 1,024: prefill(1,024) = 272,339,828,736", { exact: true })).toBeVisible();
+  await expect(page.getByText(/^P \+ s \+ 1 = /)).toHaveCount(0);
+  await expect(page.getByText("n = 1,024: 75,497,472 bytes (75.5 MB)", { exact: true })).toBeVisible();
+  await page.keyboard.press("ArrowLeft");
+  await expect(page.getByText("decode(1,023) = 284,775,936", { exact: true })).toBeVisible();
+
+  // In every language, at the length picked.
+  await page.getByLabel("Language").selectOption("Türkçe");
+  const tr = page.getByRole("slider", { name: "Bağlam uzunluğu n" });
+  await expect(tr).toHaveAttribute("aria-valuetext", "1.023 konum");
+  await expect(page.getByText("decode(1.023) = 284.775.936", { exact: true })).toBeVisible();
+  await page.getByLabel("Dil").selectOption("Deutsch");
+  const de = page.getByRole("slider", { name: "Kontextlänge n" });
+  await expect(de).toHaveAttribute("aria-valuetext", "1.023 Positionen");
+  await expect(page.getByText("n = 1.023: 75.423.744 Byte (75,4 MB)", { exact: true })).toBeVisible();
+});
+
 test.describe("on a phone", () => {
   test.use({ viewport: { width: 375, height: 740 } });
 

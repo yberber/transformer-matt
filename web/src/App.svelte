@@ -121,8 +121,9 @@
       <!-- The architecture is the same for every Example and Step, so it needs no Trace. -->
       <ArchitectureView header={trace?.header} />
     {:else if route.view === "calculate"}
-      <!-- The formulas are the same for every text, so they need no Trace either. -->
-      <HowWeCalculateView />
+      <!-- The formulas are the same for every text, so they need no Trace either; with one,
+           its slider starts at the text's length. -->
+      <HowWeCalculateView positions={shown?.positions.length} />
     {:else if liveMode && !trace}
       <p class="empty">{t("live.empty")}</p>
     {:else if failed && !liveMode}

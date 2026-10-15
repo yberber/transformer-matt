@@ -1,16 +1,21 @@
 <script lang="ts">
   // "How we calculate": every formula behind the statistics and what they leave out. The
   // formulas are written here in symbols; every number is the Estimates module's own, so the
-  // page cannot drift from the figures it explains.
+  // page cannot drift from the figures it explains. A context-length slider evaluates each
+  // formula at the length it picks, through those same functions.
   import { GPT2_CONFIG } from "../estimates/config";
-  import { BLOCK_COMPONENTS, decodeFlops, type BlockComponent } from "../estimates/flops";
+  import { BLOCK_COMPONENTS, decodeFlops, prefillFlops, type BlockComponent } from "../estimates/flops";
   import { kvCacheBytes } from "../estimates/kvCache";
   import { parameters } from "../estimates/parameters";
   import Message from "../i18n/Message.svelte";
-  import { formatNumber, t } from "../i18n/i18n";
+  import { formatNumber, t, tPlural } from "../i18n/i18n";
   import ViewFrame from "../shell/ViewFrame.svelte";
+  import { bytesText } from "./format";
 
-  const { n_embd: width, n_layer: layers, vocab_size: vocabulary } = GPT2_CONFIG;
+  /** The Positions of the text on screen, if one is loaded: where the slider starts. */
+  let { positions }: { positions?: number } = $props();
+
+  const { n_positions: maxLength, n_embd: width, n_layer: layers, vocab_size: vocabulary } = GPT2_CONFIG;
   const { heads, headWidth } = parameters(GPT2_CONFIG).qkv;
 
   // A token's cost is linear in the Positions n it reads: reading none gives the fixed part,
@@ -18,6 +23,13 @@
   const readingNone = decodeFlops(GPT2_CONFIG, 0);
   const readingOne = decodeFlops(GPT2_CONFIG, 1);
   const perPosition = readingOne.total - readingNone.total;
+
+  // The length the formulas are evaluated at: the slider's once it has moved, the text's until then.
+  let picked = $state<number | null>(null);
+  const n = $derived(picked ?? Math.min(positions ?? maxLength, maxLength));
+  const decoding = $derived(decodeFlops(GPT2_CONFIG, n));
+  const prefillTotal = $derived(prefillFlops(GPT2_CONFIG, n).total);
+  const kvBytes = $derived(kvCacheBytes(GPT2_CONFIG, n).total);
 
   const FORMULA: Record<BlockComponent, string> = {
     qkv: "2 · d · 3d",
@@ -65,6 +77,22 @@
     </dl>
   </section>
 
+  <p class="part note">{t("calc.lengthNote", { max: maxLength })}</p>
+  <!-- Stays in view while the formulas scroll past, so moving it shows their values change. -->
+  <div class="length">
+    <label for="calc-length">{t("calc.lengthLabel")} <var>n</var></label>
+    <input
+      id="calc-length"
+      type="range"
+      min="1"
+      max={maxLength}
+      value={n}
+      aria-valuetext={tPlural("stats.positions", n)}
+      oninput={(event) => (picked = event.currentTarget.valueAsNumber)}
+    />
+    <output for="calc-length">{tPlural("stats.positions", n)}</output>
+  </div>
+
   <section class="part">
     <h3 id="calc-layer">{t("calc.layerTitle")}</h3>
     <!-- On narrow screens the table scrolls sideways; the region takes focus so arrow keys can scroll it. -->
@@ -76,11 +104,12 @@
             <th scope="col">{t("stats.component")}</th>
             <th scope="col">{t("calc.formula")}</th>
             <th scope="col">{t("calc.flops")}</th>
+            <th scope="col">{t("calc.atLength", { n })}</th>
           </tr>
         </thead>
         <tbody>
           {#each BLOCK_COMPONENTS as part (part)}
-            <tr><th scope="row">{t(`stats.part.${part}`)}</th><td>{FORMULA[part]}</td><td>{perLayerText(part)}</td></tr>
+            <tr><th scope="row">{t(`stats.part.${part}`)}</th><td>{FORMULA[part]}</td><td>{perLayerText(part)}</td><td>{formatNumber(decoding.perLayer[part])}</td></tr>
           {/each}
         </tbody>
         <tfoot>
@@ -88,6 +117,7 @@
             <th scope="row">{t("calc.oneLayer")}</th>
             <td>24d² + 4d · n</td>
             <td>{formatNumber(readingNone.layer)} + {formatNumber(readingOne.layer - readingNone.layer)} · n</td>
+            <td>{formatNumber(decoding.layer)}</td>
           </tr>
         </tfoot>
       </table>
@@ -109,6 +139,7 @@
     <p class="formula">
       decode(n) = L · (24d² + 4d · n) + 2d · V = {formatNumber(readingNone.total)} + {formatNumber(perPosition)} · n
     </p>
+    <p class="formula at">decode({formatNumber(n)}) = {formatNumber(decoding.total)}</p>
   </section>
 
   <section class="part">
@@ -116,19 +147,29 @@
     <p>{t("calc.prefill")}</p>
     <p class="formula">prefill(P) = decode(1) + decode(2) + … + decode(P)</p>
     <p class="formula">= {formatNumber(readingNone.total)} · P + {formatNumber(perPosition)} · P(P + 1) / 2</p>
+    <p class="formula at">prefill({formatNumber(n)}) = {formatNumber(prefillTotal)}</p>
+    <p class="formula at">prefill({formatNumber(n)}) / {formatNumber(n)} = {formatNumber(prefillTotal / n)}</p>
   </section>
 
   <section class="part">
     <h3>{t("calc.textTitle")}</h3>
     <p>{t("calc.text")}</p>
     <p class="formula">prefill(P) + decode(P + 1) + … + decode(P + s) = prefill(P + s)</p>
+    <p class="formula at">P + s = {formatNumber(n)}: prefill({formatNumber(n)}) = {formatNumber(prefillTotal)}</p>
     <p>{t("calc.perToken")}</p>
+    <!-- A text that fills the model's n_positions leaves no room for a next token. -->
+    {#if n < maxLength}
+      <p class="formula at">
+        P + s + 1 = {formatNumber(n + 1)}: decode({formatNumber(n + 1)}) = {formatNumber(decodeFlops(GPT2_CONFIG, n + 1).total)}
+      </p>
+    {/if}
   </section>
 
   <section class="part">
     <h3>{t("calc.kvTitle")}</h3>
     <p>{t("calc.kv")}</p>
     <p class="formula">{t("calc.kvFormula", { bytes: kvCacheBytes(GPT2_CONFIG, 1).total })}</p>
+    <p class="formula at">{t("calc.kvAt", { n, bytes: kvBytes, size: bytesText(kvBytes) })}</p>
     <p class="note">{t("calc.units")}</p>
   </section>
 
@@ -163,6 +204,32 @@
     font-size: 0.85rem;
     color: var(--ink-secondary);
   }
+  .length {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem 0.75rem;
+    max-width: 44rem;
+    margin-top: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--line-soft);
+    background: var(--paper-raised);
+  }
+  .length label {
+    font-weight: 600;
+  }
+  .length input {
+    flex: 1 1 10rem;
+    min-width: 0;
+    accent-color: var(--line);
+  }
+  .length output {
+    font-family: var(--font-mono);
+    font-size: 0.9rem;
+  }
   .formula {
     width: fit-content;
     max-width: 100%;
@@ -172,6 +239,11 @@
     font-family: var(--font-mono);
     font-size: 0.9rem;
     overflow-wrap: anywhere;
+  }
+  /* A formula's value at the slider's length, set apart from the formula that holds at every length. */
+  .formula.at {
+    border-left-style: dashed;
+    background: none;
   }
   li .formula {
     display: inline-block;
