@@ -36,5 +36,5 @@
 - **Contract.**
   - `npm run gen:types` now also writes `web/src/lib/live/api.generated.ts`.
   - `npm run record:fixtures` starts the real server and records the Live-API fixtures in `web/tests/fixtures/live/`, the loading-state ones while the model loads. Vitest validates every fixture against `contract/api.schema.json`.
-- **ADR 0001 is still not amended for `first_position` (left open in ticket 13).** The web app now relies on it, so the ADR's "byte-for-byte the same shape" should become "header plus position records, plus `first_position`" (or another decision). I left the ADR for a human to decide.
+- **ADR 0001 amended (decided 2026-10-15).** An Example file is the same shape as a live API response: header plus position records, plus `first_position`. This settles the question left open in ticket 13.
 - **Playwright** starts three servers: the real inference server on 8000 (up once Health reports ready), the built site on 4173, and a second copy on 4174 whose `/api` leads to no server. CI's web job now installs uv, the Python core and the cached model.

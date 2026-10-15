@@ -42,3 +42,5 @@
 - **Privacy.**
   - uvicorn's access log is off, because it records query strings. Caddy keeps the access log (ticket 17).
   - The log-capture test runs a real uvicorn server with the production config, switches every log level on, and searches all log records plus stdout and stderr for the Prompt's words. I checked it by turning the access log on, and separately by adding a `logger.debug` of the Prompt: it failed both times.
+
+**Follow-up (2026-10-15).** The `first_position` question is decided: ADR 0001 now reads "header plus position records, plus `first_position`" (see ticket 14).
