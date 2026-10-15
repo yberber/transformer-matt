@@ -51,8 +51,6 @@ export const en = {
   "view.showDetails": "Show details",
   "view.loading": "Loading the Example…",
   "view.loadError": "The Example could not be loaded.",
-  "view.pending":
-    "This view is still being built. For now, its details show the model's own numbers from its config.",
   "view.configSource": "From the config of {model} at revision {revision}.",
   "view.tokenize.lead":
     "The model never sees letters or words: it splits the Prompt into [[token|tokens]], and each token is a number.",
@@ -82,7 +80,30 @@ export const en = {
   "predict.greedy":
     "Decoding is greedy: the most likely token is always the one appended, so the same Prompt always gives the same Continuation.",
   "predict.detailsNote": "Probabilities are over all {vocabulary} tokens; the top 10 add up to {sum}.",
-  "blocks.attentionLink": "See what each token looks at in the attention heatmap",
+  "blocks.layers": "Layers",
+  "blocks.previous": "Previous layer",
+  "blocks.next": "Next layer",
+  "blocks.layerButton": "Layer {n}, top guess: {token}",
+  "blocks.layerOf": "Layer {layer} of {layers}",
+  "blocks.guesses": "Under each layer's number is the token the model would predict at the last Position if it stopped after that layer.",
+  "blocks.attentionTitle": "Attention",
+  "blocks.attention": "Averaged over the layer's {heads} heads, {query} (Position {n}), the last token, looks most at:",
+  "blocks.attentionLink": "Open layer {layer} in the attention heatmap",
+  "blocks.mlpTitle": "MLP",
+  "blocks.mlp": "Then a small network, the MLP, reworks each token on its own. Each bar shows how much it changed that Position: the size of what it adds, compared with what was already there.",
+  "blocks.mlpLabel": "MLP impact in layer {layer}",
+  "blocks.mlpPosition": "Position {n}: ",
+  "blocks.mlpScale": "A full bar means the MLP added as much as was already there; ▲ marks more than that.",
+  "blocks.lensTitle": "Logit lens",
+  "blocks.lens": "If the model stopped after layer {layer}, this is what it would predict after {query} (Position {n}):",
+  "blocks.lensLabel": "Logit lens after layer {layer}",
+  "blocks.lensScale": "Bars show each probability on a scale from 0 to 100%.",
+  "blocks.lensLast": "After the last layer, the logit lens is the model's actual prediction.",
+  "blocks.mlpCaption": "MLP impact per Position in layer {layer}, exactly",
+  "blocks.lensCaption": "Logit lens after layer {layer} at {query} (Position {n}), exactly",
+  "blocks.mlpHow": "The MLP impact is the length (norm) of the MLP's output divided by the length of the residual stream it is added to: the {width} numbers that carry each token from layer to layer.",
+  "blocks.lensHow": "The logit lens applies the model's final LayerNorm and its output layer to the residual stream after this layer, as if it were the last one.",
+  "blocks.config": "Each of the {layers} layers has {heads} attention heads of {headWidth} numbers each, and one MLP.",
   "attention.layer": "Layer",
   "attention.head": "Head",
   "attention.shortcut": "Press [ and ] to switch head.",
@@ -128,6 +149,7 @@ export const en = {
     "The sum's first {shown} dimensions are added here exactly as the model adds them. Its norm is left out: that needs all {width} dimensions exactly, and the Trace carries only the first {shown}.",
   "embed.tables":
     "The token embedding table has {vocabulary} rows of {width} numbers, one per token; the position embedding table has {positions} rows, one per Position the model can read.",
+  "table.impact": "Impact",
   "table.weight": "Weight",
   "table.vector": "Vector",
   "table.firstDimensions": "First {n} dimensions",
@@ -144,13 +166,6 @@ export const en = {
   "token.tab": "tab",
   "token.partialBytes":
     "Bytes {bytes} are part of a character: a single character can take up to 4 bytes, and here they are split across neighbouring tokens.",
-
-  "config.vocab_size": "Vocabulary size: the tokens the model knows",
-  "config.n_positions": "Longest text the model can read, in tokens",
-  "config.n_embd": "Numbers per token (embedding width)",
-  "config.n_layer": "Layers",
-  "config.n_head": "Attention heads per layer",
-  "config.head_dim": "Numbers per attention head",
 };
 
 export type MessageKey = keyof typeof en;

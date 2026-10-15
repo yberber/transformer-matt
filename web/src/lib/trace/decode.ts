@@ -37,6 +37,17 @@ export interface PositionRecord extends Token {
    * each Position `key` from 0 to itself, a multiple of 1/ATTENTION_STEPS.
    */
   attention: Float32Array[][];
+  /**
+   * How strongly each layer's MLP changed this Position, `mlpImpact[layer]`: the norm of
+   * the MLP's output over the norm of the residual stream it is added to (float32).
+   */
+  mlpImpact: number[];
+  /**
+   * The logit lens, `logitLens[layer]`: the top-5 next tokens the model would predict here
+   * if it stopped after that layer, most likely first. After the last layer it is the
+   * prediction itself.
+   */
+  logitLens: Prediction[][];
   /** The top-10 next-token predictions made at this Position, most likely first. */
   predictions: Prediction[];
 }
@@ -97,6 +108,8 @@ export function decodeTrace(wire: Wire.Trace): Trace {
       tokenEmbedding: decodeEmbedding(record.token_embedding),
       positionEmbedding: decodeEmbedding(record.position_embedding),
       attention: decodeAttention(record.attention, position, wire.header.config),
+      mlpImpact: float32s(record.mlp_impact),
+      logitLens: record.logit_lens.map(decodePredictions),
       predictions: decodePredictions(record.predictions),
     })),
   };

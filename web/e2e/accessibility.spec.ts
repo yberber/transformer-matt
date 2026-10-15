@@ -5,7 +5,7 @@ import { expect, test } from "@playwright/test";
 const MAIN_VIEWS = [
   "/?example=village&view=tokenize&step=5&lang=en",
   "/?example=village&view=embed&step=5&lang=en",
-  "/?example=village&view=blocks&step=5&lang=en",
+  "/?example=village&view=blocks&layer=4&step=5&lang=en",
   "/?example=village&view=predict&step=5&lang=en",
   "/?example=village&view=attention&layer=5&head=12&step=5&lang=en",
 ];

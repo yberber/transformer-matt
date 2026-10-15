@@ -30,7 +30,7 @@ npm run build      # static build in web/dist
 ## Test
 
 ```sh
-cd python && uv run pytest     # Example files vs an independent Hugging Face greedy run (tokens, predictions, embeddings, attention), selection rules, regeneration reproduces the committed files, size budget, schema drift
+cd python && uv run pytest     # Example files vs an independent Hugging Face greedy run (tokens, predictions, embeddings, attention, MLP impact, logit lens), selection rules, regeneration reproduces the committed files, size budget, schema drift
 
 cd web
 npm run check                  # typecheck (svelte-check)
@@ -58,7 +58,7 @@ Lighthouse CI (`web/lighthouserc.cjs`) runs in Example mode on the landing page 
 
 The UI is in English, Turkish and German. English in `web/src/lib/i18n/messages/en.ts` is the source; `tr.ts` and `de.ts` translate every key, and `npm test` fails if a key, `{parameter}` or technical term is missing in either. Technical terms (token, embedding, attention, layer) stay in English and are marked `[[term|text]]`, which renders the text with a short explanation from `term.<term>` in the reader's language. The Turkish and German drafts need native-speaker review before release.
 
-View state (`example`, `view`, `layer`, `head`, `step`, `lang`) lives in the query string, so a URL reopens the same view. `layer` and `head` run from 1 to 12, as the UI counts them; `step` runs from 0 (the Prompt alone) to 16. The `attention` view is not a station of the pipeline strip: it opens up one layer and head of Blocks, so the strip marks Blocks while it is shown.
+View state (`example`, `view`, `layer`, `head`, `step`, `lang`) lives in the query string, so a URL reopens the same view. `layer` and `head` run from 1 to 12, as the UI counts them; `step` runs from 0 (the Prompt alone) to 16. The `attention` view is not a station of the pipeline strip: it opens up one layer and head of Blocks, so the strip marks Blocks while it is shown. The Blocks view and the attention view share `layer`, so the Blocks view's link opens the heatmap at the layer being shown.
 
 ## CI
 
@@ -73,7 +73,7 @@ cd python
 uv run regenerate
 ```
 
-This rewrites every Example file under `web/public/data/examples/` (each Prompt plus 16 greedy Steps) and copies the pinned model config to `web/public/data/gpt2-config.json`. Regeneration must reproduce the committed files, and `uv run pytest` checks that. Tokens, token IDs, headers and shapes must match exactly. Float32 values must match within the verification tolerances (probabilities within 1e-4, the first 16 embedding dimensions within 1e-6, norms and int8 scales within 1e-5 relative), int8 embedding values and uint8 attention weights may move by one step, and near-tied predictions may swap ranks. Their last bits differ between CPUs: the committed files were generated on macOS arm64, and CI runs Linux x86_64. On the same machine, regeneration is byte-identical. Commit the regenerated files.
+This rewrites every Example file under `web/public/data/examples/` (each Prompt plus 16 greedy Steps) and copies the pinned model config to `web/public/data/gpt2-config.json`. Regeneration must reproduce the committed files, and `uv run pytest` checks that. Tokens, token IDs, headers and shapes must match exactly. Float32 values must match within the verification tolerances (probabilities, logit-lens ones included, within 1e-4; the first 16 embedding dimensions within 1e-6; norms, int8 scales and MLP impacts within 1e-5 relative), int8 embedding values and uint8 attention weights may move by one step, and near-tied predictions and logit-lens tokens may swap ranks. Their last bits differ between CPUs: the committed files were generated on macOS arm64, and CI runs Linux x86_64. On the same machine, regeneration is byte-identical. Commit the regenerated files.
 
 ### Choose the Examples
 

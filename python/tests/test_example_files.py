@@ -35,6 +35,8 @@ EXACT_DIMENSIONS = 16
 # the CPU's last bits decide which.
 ATTENTION_STEPS = 255
 ATTENTION_TOLERANCE = 1 / (2 * ATTENTION_STEPS) + 1e-6
+# The logit lens keeps this many tokens per layer.
+LOGIT_LENS_TOKENS = 5
 
 # The spec's selection rules, restated. The margin was lowered from 0.05 to 1e-3 so
 # that natural prose can qualify (2026-10-15); 1e-3 still keeps every greedy choice
@@ -145,7 +147,15 @@ def assert_same_trace(actual: dict, expected: dict) -> None:
     assert len(actual["positions"]) == len(expected["positions"])
     for actual_position, expected_position in zip(actual["positions"], expected["positions"]):
         assert actual_position.keys() == expected_position.keys() == {
-            "token_id", "token_text", "token_bytes", "token_embedding", "position_embedding", "attention", "predictions"
+            "token_id",
+            "token_text",
+            "token_bytes",
+            "token_embedding",
+            "position_embedding",
+            "attention",
+            "mlp_impact",
+            "logit_lens",
+            "predictions",
         }
         for field in ("token_id", "token_text", "token_bytes"):
             assert actual_position[field] == expected_position[field]
@@ -156,22 +166,32 @@ def assert_same_trace(actual: dict, expected: dict) -> None:
         assert len(actual_attention) == len(expected_attention)
         assert all(abs(a - e) <= 1 for a, e in zip(actual_attention, expected_attention))
 
-        actual_tokens = actual_position["predictions"]["tokens"]
-        expected_tokens = expected_position["predictions"]["tokens"]
-        expected_probabilities = float32s(expected_position["predictions"]["probabilities"])
-        expected_by_id = dict(zip((t["token_id"] for t in expected_tokens), expected_probabilities))
-        assert_same_top_tokens(
-            [t["token_id"] for t in actual_tokens],
-            float32s(actual_position["predictions"]["probabilities"]),
-            [t["token_id"] for t in expected_tokens],
-            expected_probabilities,
-            expected_by_id.get,
+        assert float32s(actual_position["mlp_impact"]) == pytest.approx(
+            float32s(expected_position["mlp_impact"]), rel=RELATIVE_TOLERANCE
         )
-        # A token ID always comes with the same text and bytes.
-        tokens_by_id = {t["token_id"]: t for t in expected_tokens}
-        for token in actual_tokens:
-            if token["token_id"] in tokens_by_id:
-                assert token == tokens_by_id[token["token_id"]]
+        assert len(actual_position["logit_lens"]) == len(expected_position["logit_lens"])
+        for actual_top, expected_top in zip(actual_position["logit_lens"], expected_position["logit_lens"]):
+            assert_same_wire_top_tokens(actual_top, expected_top)
+        assert_same_wire_top_tokens(actual_position["predictions"], expected_position["predictions"])
+
+
+def assert_same_wire_top_tokens(actual: dict, expected: dict) -> None:
+    """Two top-token lists from Trace files agree up to near-ties."""
+    actual_tokens, expected_tokens = actual["tokens"], expected["tokens"]
+    expected_probabilities = float32s(expected["probabilities"])
+    expected_by_id = dict(zip((t["token_id"] for t in expected_tokens), expected_probabilities))
+    assert_same_top_tokens(
+        [t["token_id"] for t in actual_tokens],
+        float32s(actual["probabilities"]),
+        [t["token_id"] for t in expected_tokens],
+        expected_probabilities,
+        expected_by_id.get,
+    )
+    # A token ID always comes with the same text and bytes.
+    tokens_by_id = {t["token_id"]: t for t in expected_tokens}
+    for token in actual_tokens:
+        if token["token_id"] in tokens_by_id:
+            assert token == tokens_by_id[token["token_id"]]
 
 
 def read_example(example_id: str) -> dict:
@@ -319,6 +339,98 @@ def test_attention_rows_match_a_hugging_face_run(example, reference_attention):
         assert weights == pytest.approx(
             expected[:, :, i, : i + 1].flatten().tolist(), abs=ATTENTION_TOLERANCE
         ), f"attention at Position {i}"
+
+
+@pytest.fixture(scope="module")
+def reference_layers(reference_run, reference_model):
+    """Each Example's per-layer values from one plain forward pass over the whole
+    sequence: the logit lens's probabilities [layer, Position, token], and the
+    MLP output and the residual stream it is added to, [layer, Position, dimension]."""
+    layers = {}
+
+    def run(example):
+        if example.id not in layers:
+            token_ids = torch.tensor([reference_run(example)["token_ids"]])
+            transformer = reference_model.transformer
+            attention_outputs, mlp_outputs = [], []
+            hooks = [
+                hook
+                for block in transformer.h
+                for hook in (
+                    block.attn.register_forward_hook(lambda _, __, output: attention_outputs.append(output[0][0])),
+                    block.mlp.register_forward_hook(lambda _, __, output: mlp_outputs.append(output[0])),
+                )
+            ]
+            try:
+                with torch.no_grad():
+                    hidden = reference_model(token_ids, output_hidden_states=True).hidden_states
+                    # hidden_states[l] is the residual stream after block l; the last one
+                    # has already been through the final LayerNorm, the others have not.
+                    normed = [transformer.ln_f(h[0]) for h in hidden[1:-1]] + [hidden[-1][0]]
+                    lens = torch.stack([torch.softmax(reference_model.lm_head(h), dim=-1) for h in normed])
+            finally:
+                for hook in hooks:
+                    hook.remove()
+            # The MLP's output is added to the residual stream as it leaves attention: the
+            # block's input (hidden_states[l] before block l + 1) plus the attention output.
+            block_inputs = torch.stack([h[0] for h in hidden[:-1]])
+            layers[example.id] = {
+                "logit_lens": lens,
+                "residual": block_inputs + torch.stack(attention_outputs),
+                "mlp_output": torch.stack(mlp_outputs),
+            }
+        return layers[example.id]
+
+    return run
+
+
+@pytest.mark.parametrize("example", EXAMPLES, ids=lambda e: e.id)
+def test_logit_lens_matches_a_hugging_face_run(example, reference_layers, reference_tokenizer):
+    lens = reference_layers(example)["logit_lens"]
+    positions = read_example(example.id)["positions"]
+    assert lens.shape[:2] == (N_LAYER, len(positions))
+
+    for i, position in enumerate(positions):
+        assert len(position["logit_lens"]) == N_LAYER
+        for layer, top_tokens in enumerate(position["logit_lens"]):
+            probabilities = lens[layer, i]
+            top = probabilities.topk(LOGIT_LENS_TOKENS)
+            ids = [t["token_id"] for t in top_tokens["tokens"]]
+            assert_same_top_tokens(
+                ids,
+                float32s(top_tokens["probabilities"]),
+                top.indices.tolist(),
+                top.values.tolist(),
+                lambda token_id: float(probabilities[token_id]),
+            )
+            assert [t["token_text"] for t in top_tokens["tokens"]] == [
+                reference_tokenizer.decode([token_id]) for token_id in ids
+            ], f"logit lens at Position {i}, layer {layer + 1}"
+
+
+@pytest.mark.parametrize("example", EXAMPLES, ids=lambda e: e.id)
+def test_logit_lens_at_the_last_layer_is_the_prediction(example):
+    for position in read_example(example.id)["positions"]:
+        last = position["logit_lens"][-1]
+        predictions = position["predictions"]
+        assert last["tokens"] == predictions["tokens"][:LOGIT_LENS_TOKENS]
+        assert float32s(last["probabilities"]) == pytest.approx(
+            float32s(predictions["probabilities"])[:LOGIT_LENS_TOKENS], abs=PROBABILITY_TOLERANCE
+        )
+
+
+@pytest.mark.parametrize("example", EXAMPLES, ids=lambda e: e.id)
+def test_mlp_impact_matches_a_hugging_face_run(example, reference_layers):
+    expected = reference_layers(example)
+    impact = expected["mlp_output"].norm(dim=-1) / expected["residual"].norm(dim=-1)
+    positions = read_example(example.id)["positions"]
+    assert impact.shape == (N_LAYER, len(positions))
+
+    for i, position in enumerate(positions):
+        # Layer by layer: the norm of the MLP's output over the norm of the residual stream it is added to.
+        assert float32s(position["mlp_impact"]) == pytest.approx(
+            impact[:, i].tolist(), rel=RELATIVE_TOLERANCE
+        ), f"MLP impact at Position {i}"
 
 
 def test_there_are_two_examples_in_each_length_band():

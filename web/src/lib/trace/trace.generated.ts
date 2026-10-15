@@ -33,6 +33,8 @@ export interface PositionRecord {
   token_embedding: Embedding;
   position_embedding: Embedding;
   attention: string;
+  mlp_impact: string;
+  logit_lens: TopTokens[];
   predictions: TopTokens;
 }
 /**

@@ -103,6 +103,20 @@
           "title": "Attention",
           "type": "string"
         },
+        "mlp_impact": {
+          "contentEncoding": "base64",
+          "contentMediaType": "application/x-float32-le",
+          "pattern": "^[A-Za-z0-9+/]*={0,2}$",
+          "title": "Mlp Impact",
+          "type": "string"
+        },
+        "logit_lens": {
+          "items": {
+            "$ref": "#/$defs/TopTokens"
+          },
+          "title": "Logit Lens",
+          "type": "array"
+        },
         "predictions": {
           "$ref": "#/$defs/TopTokens"
         }
@@ -114,6 +128,8 @@
         "token_embedding",
         "position_embedding",
         "attention",
+        "mlp_impact",
+        "logit_lens",
         "predictions"
       ],
       "title": "PositionRecord",

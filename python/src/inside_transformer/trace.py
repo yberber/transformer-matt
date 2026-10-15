@@ -196,6 +196,13 @@ class PositionRecord(_Contract):
     # weight it gives each Position from 0 to itself, as round(weight × 255). Attention
     # is causal, so the row never changes once later tokens arrive.
     attention: UInt8Array
+    # How strongly each layer's MLP changed this Position, layer by layer: the norm of
+    # the MLP's output over the norm of the residual stream it is added to.
+    mlp_impact: Float32Array
+    # The logit lens, layer by layer: the top-5 next tokens the model would predict
+    # here if it stopped after that layer, by applying the final LayerNorm and the LM
+    # head to the residual stream. After the last layer it is the prediction itself.
+    logit_lens: list[TopTokens]
     # The top-10 next-token predictions made at this Position.
     predictions: TopTokens
 
@@ -209,9 +216,12 @@ class Trace(_Contract):
     positions: list[PositionRecord]
 
     @model_validator(mode="after")
-    def _one_attention_row_per_head(self) -> "Trace":
-        heads = self.header.config.n_layer * self.header.config.n_head
+    def _per_layer_values_for_every_layer(self) -> "Trace":
+        layers = self.header.config.n_layer
+        heads = layers * self.header.config.n_head
         for i, position in enumerate(self.positions):
             if len(position.attention) != heads * (i + 1):
                 raise ValueError(f"expected {heads} attention rows of {i + 1} weights at Position {i}")
+            if len(position.mlp_impact) != layers or len(position.logit_lens) != layers:
+                raise ValueError(f"expected an MLP impact and a logit lens for each of {layers} layers at Position {i}")
         return self

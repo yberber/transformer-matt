@@ -1,10 +1,10 @@
 <script lang="ts">
   import { route } from "./lib/app/route.svelte";
   import AttentionView from "./lib/attention/AttentionView.svelte";
+  import BlocksView from "./lib/blocks/BlocksView.svelte";
   import EmbeddingsView from "./lib/embed/EmbeddingsView.svelte";
   import { t } from "./lib/i18n/i18n";
   import Masthead from "./lib/shell/Masthead.svelte";
-  import PendingView from "./lib/shell/PendingView.svelte";
   import PredictionView from "./lib/predict/PredictionView.svelte";
   import ExamplePicker from "./lib/shell/ExamplePicker.svelte";
   import PipelineStrip from "./lib/shell/PipelineStrip.svelte";
@@ -52,12 +52,12 @@
       <TokenizationView trace={shown} />
     {:else if route.view === "embed"}
       <EmbeddingsView trace={shown} />
+    {:else if route.view === "blocks"}
+      <BlocksView trace={shown} />
     {:else if route.view === "attention"}
       <AttentionView trace={shown} />
     {:else if route.view === "predict"}
       <PredictionView trace={shown} canAdvance={route.step < stepCount(trace!)} />
-    {:else}
-      <PendingView view={route.view} trace={shown} />
     {/if}
   </main>
 </div>
