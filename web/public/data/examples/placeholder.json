@@ -1,0 +1,100 @@
+{
+  "header": {
+    "model_id": "openai-community/gpt2",
+    "model_revision": "607a30d783dfa663caf39e06633721c8d4cfcd7e",
+    "config": {
+      "vocab_size": 50257,
+      "n_positions": 1024,
+      "n_embd": 768,
+      "n_layer": 12,
+      "n_head": 12
+    }
+  },
+  "positions": [
+    {
+      "token_id": 30642,
+      "token_text": "Token",
+      "token_bytes": "VG9rZW4="
+    },
+    {
+      "token_id": 11341,
+      "token_text": "izers",
+      "token_bytes": "aXplcnM="
+    },
+    {
+      "token_id": 6626,
+      "token_text": " split",
+      "token_bytes": "IHNwbGl0"
+    },
+    {
+      "token_id": 2456,
+      "token_text": " words",
+      "token_bytes": "IHdvcmRz"
+    },
+    {
+      "token_id": 588,
+      "token_text": " like",
+      "token_bytes": "IGxpa2U="
+    },
+    {
+      "token_id": 34719,
+      "token_text": " �",
+      "token_bytes": "IOKY"
+    },
+    {
+      "token_id": 243,
+      "token_text": "�",
+      "token_bytes": "lQ=="
+    },
+    {
+      "token_id": 656,
+      "token_text": " into",
+      "token_bytes": "IGludG8="
+    },
+    {
+      "token_id": 5207,
+      "token_text": " pieces",
+      "token_bytes": "IHBpZWNlcw=="
+    },
+    {
+      "token_id": 13,
+      "token_text": ".",
+      "token_bytes": "Lg=="
+    },
+    {
+      "token_id": 198,
+      "token_text": "\n",
+      "token_bytes": "Cg=="
+    },
+    {
+      "token_id": 197,
+      "token_text": "\t",
+      "token_bytes": "CQ=="
+    },
+    {
+      "token_id": 6104,
+      "token_text": "Even",
+      "token_bytes": "RXZlbg=="
+    },
+    {
+      "token_id": 22524,
+      "token_text": " tabs",
+      "token_bytes": "IHRhYnM="
+    },
+    {
+      "token_id": 290,
+      "token_text": " and",
+      "token_bytes": "IGFuZA=="
+    },
+    {
+      "token_id": 649,
+      "token_text": " new",
+      "token_bytes": "IG5ldw=="
+    },
+    {
+      "token_id": 6615,
+      "token_text": "lines",
+      "token_bytes": "bGluZXM="
+    }
+  ]
+}

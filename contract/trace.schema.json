@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "ModelConfig": {
+      "additionalProperties": false,
+      "description": "The model config values the Trace was built with.",
+      "properties": {
+        "vocab_size": {
+          "title": "Vocab Size",
+          "type": "integer"
+        },
+        "n_positions": {
+          "title": "N Positions",
+          "type": "integer"
+        },
+        "n_embd": {
+          "title": "N Embd",
+          "type": "integer"
+        },
+        "n_layer": {
+          "title": "N Layer",
+          "type": "integer"
+        },
+        "n_head": {
+          "title": "N Head",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "vocab_size",
+        "n_positions",
+        "n_embd",
+        "n_layer",
+        "n_head"
+      ],
+      "title": "ModelConfig",
+      "type": "object"
+    },
+    "PositionRecord": {
+      "additionalProperties": false,
+      "description": "Everything recorded for one Position.",
+      "properties": {
+        "token_id": {
+          "title": "Token Id",
+          "type": "integer"
+        },
+        "token_text": {
+          "title": "Token Text",
+          "type": "string"
+        },
+        "token_bytes": {
+          "contentEncoding": "base64",
+          "pattern": "^[A-Za-z0-9+/]*={0,2}$",
+          "title": "Token Bytes",
+          "type": "string"
+        }
+      },
+      "required": [
+        "token_id",
+        "token_text",
+        "token_bytes"
+      ],
+      "title": "PositionRecord",
+      "type": "object"
+    },
+    "TraceHeader": {
+      "additionalProperties": false,
+      "properties": {
+        "model_id": {
+          "title": "Model Id",
+          "type": "string"
+        },
+        "model_revision": {
+          "title": "Model Revision",
+          "type": "string"
+        },
+        "config": {
+          "$ref": "#/$defs/ModelConfig"
+        }
+      },
+      "required": [
+        "model_id",
+        "model_revision",
+        "config"
+      ],
+      "title": "TraceHeader",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Every recorded value for a Prompt and its Steps.",
+  "properties": {
+    "header": {
+      "$ref": "#/$defs/TraceHeader"
+    },
+    "positions": {
+      "items": {
+        "$ref": "#/$defs/PositionRecord"
+      },
+      "title": "Positions",
+      "type": "array"
+    }
+  },
+  "required": [
+    "header",
+    "positions"
+  ],
+  "title": "Trace",
+  "type": "object"
+}
