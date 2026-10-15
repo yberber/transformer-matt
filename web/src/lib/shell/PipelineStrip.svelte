@@ -3,6 +3,13 @@
   // a return pipe that carries each chosen token back to the inlet. Stations are
   // the navigation; the beads in the tube are decorative (the views' token chips
   // carry the text).
+  //
+  // Motion only shows data moving: moving on to a later stage sends the sequence
+  // through the tubes in between, one after the other, and a new Step's token rides
+  // the return pipe to the inlet and on through every tube. Moving back cuts
+  // instantly, and so does everything under reduced motion (styles.css turns CSS
+  // animations off).
+  import { untrack } from "svelte";
   import { navigate, route } from "../app/route.svelte";
   import { STAGES, stageOf, type Stage } from "../app/viewState";
   import { formatNumber, t, tPlural } from "../i18n/i18n";
@@ -27,6 +34,53 @@
       case "predict":
         return t("stage.spec.predict", { n: config.vocab_size });
     }
+  }
+
+  /** How long the sequence takes to pass through one tube. */
+  const SEGMENT_MS = 320;
+  /** How long a new token takes along the return pipe. */
+  const RETURN_MS = 700;
+
+  /** The stage's place in the pipeline, or -1 on a page outside it. */
+  function stageIndex(): number {
+    const stage = stageOf(route.view);
+    return stage ? STAGES.indexOf(stage) : -1;
+  }
+
+  type Motion = { kind: "flow"; from: number; to: number } | { kind: "append" };
+
+  // The motion under way; a new one replaces the tubes' contents, which starts it.
+  let motion = $state<Motion>();
+
+  /** Where the strip stands: the stage, which Trace (the Example's or the Live Prompt's), and the Step. */
+  function standing() {
+    return { stage: stageIndex(), trace: `${route.mode} ${route.example} ${route.prompt}`, step: route.step };
+  }
+
+  let seen = standing();
+
+  $effect.pre(() => {
+    const now = standing();
+    // A stage change comes first: Back or Forward can change the Step with it, which
+    // revisits a Step rather than appending one.
+    untrack(() => {
+      if (now.stage !== seen.stage)
+        motion = seen.stage >= 0 && now.stage > seen.stage ? { kind: "flow", from: seen.stage, to: now.stage } : undefined;
+      else if (now.trace === seen.trace && now.step > seen.step) motion = { kind: "append" };
+      else if (now.trace !== seen.trace || now.step !== seen.step) motion = undefined;
+      seen = now;
+    });
+  });
+
+  /** When the sequence starts through the tube after station `tube`, if it moves now. */
+  function flowDelay(tube: number): string | undefined {
+    if (motion?.kind !== "flow" || tube < motion.from || tube >= motion.to) return undefined;
+    return `${(tube - motion.from) * SEGMENT_MS}ms`;
+  }
+
+  /** When a new token enters the tube after station `tube`, once back from the return pipe. */
+  function enterDelay(tube: number): string | undefined {
+    return motion?.kind === "append" ? `${RETURN_MS + tube * SEGMENT_MS}ms` : undefined;
   }
 </script>
 
@@ -62,14 +116,30 @@
         <span class="spec">{spec(view)}</span>
       </button>
       {#if i < STAGES.length - 1}
-        <span class="tube" aria-hidden="true">
-          {#each { length: positionCount }, position (position)}<span class="bead" style:--token-color={positionColor(position)}></span>{/each}
+        <span class="tube" aria-hidden="true" style:--segment="{SEGMENT_MS}ms">
+          {#key motion}
+            {@const delay = flowDelay(i)}
+            <span class="train" class:flowing={delay !== undefined} style:animation-delay={delay}>
+              {#each { length: positionCount }, position (position)}
+                {@const entering = position === positionCount - 1 ? enterDelay(i) : undefined}
+                <span
+                  class="bead"
+                  class:entering={entering !== undefined}
+                  style:--token-color={positionColor(position)}
+                  style:animation-delay={entering}
+                ></span>
+              {/each}
+            </span>
+          {/key}
         </span>
       {/if}
     {/each}
     <span class="tube outlet" aria-hidden="true"></span>
   </div>
-  <div class="return" aria-hidden="true">
+  <div class="return" aria-hidden="true" style:--return="{RETURN_MS}ms">
+    {#if motion?.kind === "append"}
+      {#key motion}<span class="bead returning" style:--token-color={positionColor(positionCount - 1)}></span>{/key}
+    {/if}
     <span class="return-label">{t("pipeline.return")}</span>
   </div>
 </nav>
@@ -161,12 +231,28 @@
     display: flex;
     justify-content: flex-end;
     align-items: center;
-    gap: 2px;
     padding: 0 3px;
     overflow: hidden;
+    container-type: inline-size;
     border-top: 1.5px solid var(--line);
     border-bottom: 1.5px solid var(--line);
     background: var(--glass);
+  }
+  .train {
+    flex: none;
+    display: flex;
+    gap: 2px;
+  }
+  /* The tube is a size container, so the sequence can start one tube length (plus its
+     padding) back, out of sight. */
+  .flowing,
+  .entering {
+    animation: flow var(--segment) ease-in-out backwards;
+  }
+  @keyframes flow {
+    from {
+      transform: translateX(calc(-100cqi - 6px));
+    }
   }
   .tube.outlet {
     flex: 0 0 1.75rem;
@@ -181,13 +267,43 @@
     background: var(--token-color);
     box-shadow: 0 0 6px color-mix(in oklab, var(--token-color) calc(var(--glow) * 90%), transparent);
   }
+  /* A new token passes over the beads already in the tube. */
+  .entering {
+    position: relative;
+  }
   .return {
     position: relative;
+    container-type: size;
     height: 1.6rem;
     margin: -1px 0.75rem 0 0.4rem;
     border: 1.5px solid var(--line-soft);
     border-top: none;
     border-radius: 0 0 12px 12px;
+  }
+  /* Centered on the pipe's line, it runs down the right side, along the bottom and up
+     to the inlet. It shows only while it moves. */
+  .returning {
+    position: absolute;
+    top: -3.5px;
+    left: -4.25px;
+    visibility: hidden;
+    animation: return var(--return) linear backwards;
+  }
+  @keyframes return {
+    0% {
+      visibility: visible;
+      transform: translate(calc(100cqw + 1.5px), 0);
+    }
+    8% {
+      transform: translate(calc(100cqw + 1.5px), calc(100cqh + 0.75px));
+    }
+    92% {
+      transform: translate(0, calc(100cqh + 0.75px));
+    }
+    100% {
+      visibility: visible;
+      transform: translate(0, 0);
+    }
   }
   .return-label {
     position: absolute;
