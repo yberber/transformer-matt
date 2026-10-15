@@ -33,4 +33,4 @@
   - **No motion.** A new cell appears instantly, because ticket 18 kept motion to the pipeline strip.
   - **No test on the strips' geometry.** Only the text and the exact table are asserted.
 - **Translations** for the new `stats.kv*` keys are agent drafts (ticket 21).
-- **Seen in passing.** `e2e/data-flow.spec.ts:51` reads the token chips right after `goto`, without waiting for the Example to load. It failed once in a full run and passed on every rerun.
+- **Seen in passing.** `e2e/data-flow.spec.ts:51` reads the token chips right after `goto`, without waiting for the Example to load. It failed once in a full run and passed on every rerun. Fixed in a follow-up commit: the test now waits for the 12 chips first.

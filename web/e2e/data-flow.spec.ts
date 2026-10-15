@@ -48,8 +48,8 @@ function station(page: Page, name: string) {
 
 test("moving to a later stage animates the tokens flowing there, in their Position colors", async ({ page }) => {
   await page.goto(TOKENIZE_URL);
+  await expect(page.getByRole("list", { name: "Tokens" }).getByRole("listitem")).toHaveCount(12);
   const colors = await chipColors(page, "Tokens");
-  expect(colors).toHaveLength(12);
 
   await recordAnimations(page);
   await station(page, "Predict").click();
