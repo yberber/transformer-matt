@@ -34,10 +34,16 @@ cd python && uv run pytest     # Example files vs an independent Hugging Face ru
 
 cd web
 npm run check                  # typecheck (svelte-check)
-npm test                       # Vitest: Example files validate against the committed schema; generated types are current
+npm test                       # Vitest: Example files validate against the committed schema; generated types are current; every translation key exists in all three languages
 npx playwright install chromium   # once
 npm run test:e2e               # Playwright against the built site
 ```
+
+## UI text and languages
+
+The UI is in English, Turkish and German. English in `web/src/lib/i18n/messages/en.ts` is the source; `tr.ts` and `de.ts` translate every key, and `npm test` fails if a key, `{parameter}` or technical term is missing in either. Technical terms (token, embedding, attention, layer) stay in English and are marked `[[term|text]]`, which renders the text with a short explanation from `term.<term>` in the reader's language. The Turkish and German drafts need native-speaker review before release.
+
+View state (`example`, `view`, `lang`) lives in the query string, so a URL reopens the same view.
 
 ## CI
 

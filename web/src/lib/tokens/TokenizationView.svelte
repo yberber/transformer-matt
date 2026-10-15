@@ -1,4 +1,7 @@
 <script lang="ts">
+  import Message from "../i18n/Message.svelte";
+  import { t } from "../i18n/i18n";
+  import ViewFrame from "../shell/ViewFrame.svelte";
   import type { Trace } from "../trace/decode";
   import { positionColor } from "./color";
   import { hex } from "./display";
@@ -7,27 +10,27 @@
   let { trace }: { trace: Trace } = $props();
 </script>
 
-<section aria-labelledby="tokenize-heading">
-  <h2 id="tokenize-heading">Tokenize</h2>
-  <p class="lead">
-    The model never sees letters or words: it splits the Prompt into tokens, and each token is a
-    number.
-  </p>
+<ViewFrame view="tokenize">
+  {#snippet lead()}<Message key="view.tokenize.lead" />{/snippet}
 
-  <ol class="tokens" aria-label="Prompt tokens">
+  <ol class="tokens" aria-label={t("tokenize.listLabel")}>
     {#each trace.positions as position, i (i)}
-      <li class="token" style:--token-color={positionColor(i)}>
+      <li class="token chip" style:--token-color={positionColor(i)}>
         <TokenText bytes={position.tokenBytes} />
       </li>
     {/each}
   </ol>
 
-  <details>
-    <summary>Show details</summary>
+  {#snippet details()}
     <div class="table-scroll">
       <table>
         <thead>
-          <tr><th scope="col">Position</th><th scope="col">Token</th><th scope="col">Token ID</th><th scope="col">Bytes</th></tr>
+          <tr>
+            <th scope="col">{t("table.position")}</th>
+            <th scope="col">{t("table.token")}</th>
+            <th scope="col">{t("table.tokenId")}</th>
+            <th scope="col">{t("table.bytes")}</th>
+          </tr>
         </thead>
         <tbody>
           {#each trace.positions as position, i (i)}
@@ -41,13 +44,10 @@
         </tbody>
       </table>
     </div>
-  </details>
-</section>
+  {/snippet}
+</ViewFrame>
 
 <style>
-  .lead {
-    max-width: 38rem;
-  }
   .tokens {
     display: flex;
     flex-wrap: wrap;
@@ -55,20 +55,6 @@
     margin: 1.5rem 0;
     padding: 0;
     list-style: none;
-    font-family: var(--font-mono);
-  }
-  .token {
-    padding: 0.15rem 0.4rem;
-    border-bottom: 3px solid var(--token-color);
-    border-radius: 3px 3px 0 0;
-    background: color-mix(in oklab, var(--token-color) 14%, var(--paper));
-    white-space: pre;
-  }
-  details {
-    margin-top: 1rem;
-  }
-  summary {
-    cursor: pointer;
   }
   .table-scroll {
     overflow-x: auto;

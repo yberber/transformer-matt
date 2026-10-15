@@ -1,53 +1,105 @@
 /*
- * Token palette: the dataviz reference categorical palette (8 hues) extended
- * with cyan and brown to 10. Validated with the dataviz skill's
- * validate_palette.js against both surfaces, with slot 10 → slot 1 included as
- * an adjacent pair because the palette cycles. Light: worst adjacent CVD ΔE 9.1,
- * normal-vision ΔE 19.6; three slots sit under 3:1 contrast, relieved because
- * token text always accompanies the color. Dark: worst adjacent CVD ΔE 8.4,
- * normal-vision ΔE 19.3, all slots at least 3:1.
+ * "Specimen under glass", as approved in ticket 03. Light: warm paper with
+ * ink-blue lines. Dark: a lab bench with phosphor-like token colors. Every text
+ * color is at least 4.5:1 on both --paper and --paper-raised (WCAG AA).
+ *
+ * Token palette: 10 hues in a fixed order, one palette per theme, the same hue
+ * in the same slot (blue, orange, green, brown, pink, ochre, violet, red, cyan,
+ * olive). The order was searched for the best worst-case adjacent CVD
+ * separation, slot 10 → slot 1 included because the palette cycles. Checked
+ * with the dataviz skill's validate_palette.js:
+ *   light on #f6f1e6: 3.48–5.45:1 (WCAG AA non-text), CVD worst 7.4,
+ *     normal-vision worst 16.5.
+ *   dark on #101513: 6.17–11.62:1, CVD worst 7.1, normal-vision worst 17.3.
+ *     Deliberately above the validator's dark lightness band for the phosphor
+ *     look.
+ * The CVD values sit in the validator's floor band, which is allowed only
+ * because token text always accompanies color.
+ *
+ * The theme follows the system setting; data-theme on <html> overrides it.
  */
 :root {
-  color-scheme: light dark;
-  --paper: #fcfcfb;
-  --ink: #0b0b0b;
-  --ink-secondary: #52514e;
-  --ink-faint: #898781;
-  --rule: #e1e0d9;
-  --font-prose: Charter, "Iowan Old Style", Georgia, serif;
+  color-scheme: light;
+  --paper: #f6f1e6;
+  --paper-raised: #fbf8f1;
+  --glass: rgb(36 80 143 / 0.05);
+  --ink: #1b2333;
+  --ink-secondary: #4b5266;
+  --ink-faint: #736c5c;
+  --line: #24508f;
+  --line-soft: rgb(36 80 143 / 0.28);
+  --rule: rgb(36 80 143 / 0.16);
+  --glow: 0;
+
+  --font-prose: "Iowan Old Style", Charter, "Palatino Linotype", Georgia, serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
-  --token-0: #2a78d6;
-  --token-1: #eb6834;
-  --token-2: #1baf7a;
-  --token-3: #eda100;
-  --token-4: #e87ba4;
-  --token-5: #008300;
-  --token-6: #6250d6;
-  --token-7: #e34948;
-  --token-8: #0e9bb5;
-  --token-9: #a0652a;
+  --token-0: #2a64c4;
+  --token-1: #c8541c;
+  --token-2: #13895c;
+  --token-3: #9e5418;
+  --token-4: #c94f86;
+  --token-5: #a87800;
+  --token-6: #6a4fcf;
+  --token-7: #cc3b3b;
+  --token-8: #0f8aa3;
+  --token-9: #5b7a14;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --paper: #1a1a19;
-    --ink: #f0efec;
-    --ink-secondary: #c3c2b7;
-    --ink-faint: #898781;
-    --rule: #383835;
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --paper: #101513;
+    --paper-raised: #171d1a;
+    --glass: rgb(160 200 180 / 0.04);
+    --ink: #e4e9e2;
+    --ink-secondary: #a7b0a8;
+    --ink-faint: #7f8a82;
+    --line: #6d8fb5;
+    --line-soft: rgb(109 143 181 / 0.35);
+    --rule: rgb(160 200 180 / 0.12);
+    --glow: 1;
 
-    --token-0: #3987e5;
-    --token-1: #d95926;
-    --token-2: #199e70;
-    --token-3: #c98500;
-    --token-4: #d55181;
-    --token-5: #008300;
-    --token-6: #9085e9;
-    --token-7: #e66767;
-    --token-8: #1aa3bd;
-    --token-9: #b0763a;
+    --token-0: #6aa8ff;
+    --token-1: #ff9a52;
+    --token-2: #3ee0a0;
+    --token-3: #e0a368;
+    --token-4: #ff7fbf;
+    --token-5: #f2c94c;
+    --token-6: #b49cff;
+    --token-7: #ff6b6b;
+    --token-8: #4fd8f0;
+    --token-9: #a6dc4e;
   }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --paper: #101513;
+  --paper-raised: #171d1a;
+  --glass: rgb(160 200 180 / 0.04);
+  --ink: #e4e9e2;
+  --ink-secondary: #a7b0a8;
+  --ink-faint: #7f8a82;
+  --line: #6d8fb5;
+  --line-soft: rgb(109 143 181 / 0.35);
+  --rule: rgb(160 200 180 / 0.12);
+  --glow: 1;
+
+  --token-0: #6aa8ff;
+  --token-1: #ff9a52;
+  --token-2: #3ee0a0;
+  --token-3: #e0a368;
+  --token-4: #ff7fbf;
+  --token-5: #f2c94c;
+  --token-6: #b49cff;
+  --token-7: #ff6b6b;
+  --token-8: #4fd8f0;
+  --token-9: #a6dc4e;
+}
+
+* {
+  box-sizing: border-box;
 }
 
 body {
@@ -56,4 +108,74 @@ body {
   color: var(--ink);
   font-family: var(--font-prose);
   line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* The bench: a faint 32px grid behind the page. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    linear-gradient(var(--rule) 1px, transparent 1px),
+    linear-gradient(90deg, var(--rule) 1px, transparent 1px);
+  background-size: 32px 32px;
+  opacity: 0.35;
+}
+
+button,
+input,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--line);
+  outline-offset: 2px;
+}
+
+/* A masthead control: a pill with a raised ground. */
+.control {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.7rem;
+  border: 1px solid var(--line-soft);
+  border-radius: 999px;
+  background: var(--paper-raised);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.control[aria-pressed="true"] {
+  border-color: var(--line);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.control:has(:focus-visible) {
+  outline: 2px solid var(--line);
+  outline-offset: 2px;
+}
+
+/* A token chip: ink text on a tinted ground with a colored rule, glowing in dark. */
+.chip {
+  padding: 0.15rem 0.4rem;
+  font-family: var(--font-mono);
+  white-space: pre;
+  border-bottom: 3px solid var(--token-color);
+  border-radius: 3px 3px 0 0;
+  background: color-mix(in oklab, var(--token-color) 14%, var(--paper));
+  box-shadow: 0 2px 10px -2px color-mix(in oklab, var(--token-color) calc(var(--glow) * 70%), transparent);
+}
+
+/* Motion is only for data moving between stages; reduced motion cuts instantly.
+   Svelte transitions bypass this rule and must set their duration to 0 themselves. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
 }

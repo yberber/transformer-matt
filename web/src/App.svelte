@@ -1,27 +1,54 @@
 <script lang="ts">
+  import { route } from "./lib/app/route.svelte";
+  import { t } from "./lib/i18n/i18n";
+  import Masthead from "./lib/shell/Masthead.svelte";
+  import PendingView from "./lib/shell/PendingView.svelte";
+  import PipelineStrip from "./lib/shell/PipelineStrip.svelte";
   import TokenizationView from "./lib/tokens/TokenizationView.svelte";
-  import { loadExample } from "./lib/trace/decode";
+  import { loadExample, type Trace } from "./lib/trace/decode";
 
-  const example = loadExample("placeholder");
+  let trace = $state<Trace>();
+  let failed = $state(false);
+
+  $effect(() => {
+    const id = route.example;
+    let current = true;
+    failed = false;
+    loadExample(id).then(
+      (loaded) => current && (trace = loaded),
+      (error: unknown) => {
+        console.error(error);
+        if (current) failed = true;
+      },
+    );
+    return () => (current = false);
+  });
+
+  $effect(() => {
+    document.documentElement.lang = route.lang;
+  });
 </script>
 
-<main>
-  <h1>Inside the Transformer</h1>
-  <p>Watch GPT-2 small turn a piece of text into a continuation, step by step, with real numbers.</p>
-
-  {#await example}
-    <p role="status">Loading the Example…</p>
-  {:then trace}
-    <TokenizationView {trace} />
-  {:catch error}
-    <p role="alert">{error.message}</p>
-  {/await}
-</main>
+<div class="page">
+  <Masthead />
+  <PipelineStrip {trace} />
+  <main>
+    {#if failed}
+      <p role="alert">{t("view.loadError")}</p>
+    {:else if !trace}
+      <p role="status">{t("view.loading")}</p>
+    {:else if route.view === "tokenize"}
+      <TokenizationView {trace} />
+    {:else}
+      <PendingView view={route.view} {trace} />
+    {/if}
+  </main>
+</div>
 
 <style>
-  main {
-    max-width: 60rem;
+  .page {
+    max-width: 68rem;
     margin: 0 auto;
-    padding: 2rem 1rem;
+    padding: 0 1rem;
   }
 </style>

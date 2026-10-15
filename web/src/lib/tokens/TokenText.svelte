@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from "../i18n/i18n";
   import { displayParts, hex } from "./display";
 
   let { bytes }: { bytes: Uint8Array } = $props();
@@ -11,14 +12,13 @@
   {#if part.kind === "text"}{part.text}{:else if part.kind === "space"}<span
       class="marker space"
       role="img"
-      aria-label="space">·</span
-    >{:else if part.kind === "newline"}<span class="marker" role="img" aria-label="newline">↵</span
-    >{:else if part.kind === "tab"}<span class="marker" role="img" aria-label="tab">→</span
+      aria-label={t("token.space")}>·</span
+    >{:else if part.kind === "newline"}<span class="marker" role="img" aria-label={t("token.newline")}>↵</span
+    >{:else if part.kind === "tab"}<span class="marker" role="img" aria-label={t("token.tab")}>→</span
     >{:else}<span class="byte-marker"
       ><button type="button" class="bytes" aria-describedby="{tooltipId}-{i}">{hex(part.bytes)}</button
       ><span class="tooltip" role="tooltip" id="{tooltipId}-{i}"
-        >Bytes {hex(part.bytes)} are part of a character: a single character can take up to 4
-        bytes, and here they are split across neighbouring tokens.</span
+        >{t("token.partialBytes", { bytes: hex(part.bytes) })}</span
       ></span
     >{/if}
 {/each}
