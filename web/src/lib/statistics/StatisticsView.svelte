@@ -1,7 +1,7 @@
 <script lang="ts">
   // What GPT-2 computes for the text at the current Step, as theoretical Estimates from the
   // Estimates module: FLOPs per token for prefill and decode, totals for the text so far and
-  // its KV cache, a breakdown by component, and one layer's cost drawn ×n_layer.
+  // its KV cache, layer by layer, a breakdown by component, and one layer's cost drawn ×n_layer.
   import { GPT2_CONFIG } from "../estimates/config";
   import { COMPONENTS, decodeFlops, textFlops, type Component } from "../estimates/flops";
   import { kvCacheBytes } from "../estimates/kvCache";
@@ -14,9 +14,11 @@
   import { contextCost, exactLengths } from "./contextChart";
   import EstimateLink from "./EstimateLink.svelte";
   import { bytesText, flopsText, shareText } from "./format";
+  import KvCacheLayers from "./KvCacheLayers.svelte";
   import LayerBars from "./LayerBars.svelte";
 
-  let { trace }: { trace: Trace } = $props();
+  /** `limit` is the last Step this run can reach. */
+  let { trace, limit }: { trace: Trace; limit: number } = $props();
 
   // Only the blocks' components are drawn in color; the embeddings and the LM head have none.
   const colors: Partial<Record<Component, string>> = COMPONENT_COLOR;
@@ -31,6 +33,8 @@
   // The next Step decodes one more token, reading every Position so far and itself.
   const next = $derived(decodeFlops(GPT2_CONFIG, positions + 1));
   const cache = $derived(kvCacheBytes(GPT2_CONFIG, positions));
+  // The most Positions this run can hold: the Prompt and every Step the run can take.
+  const capacity = $derived(promptLength + limit);
 
   // The context-length chart's exact numbers.
   const contextRows = $derived(
@@ -72,6 +76,12 @@
       </div>
     </dl>
     <p class="note">{t("stats.kvCacheNote", { n: positions, layers: cache.layers })}</p>
+  </section>
+
+  <section class="part" aria-labelledby="stats-kv">
+    <h3><span id="stats-kv">{t("stats.kvLayers")}</span> <EstimateLink /></h3>
+    <p class="note">{t("stats.kvLayersNote", { width: GPT2_CONFIG.n_embd })}</p>
+    <KvCacheLayers config={GPT2_CONFIG} {positions} {capacity} />
   </section>
 
   <section class="part">
@@ -201,6 +211,38 @@
             </tr>
           {/each}
         </tbody>
+      </table>
+    </div>
+    <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+    <div class="table-scroll" role="region" aria-labelledby="stats-kv-caption" tabindex="0">
+      <table class="exact">
+        <caption id="stats-kv-caption">{t("stats.kvExactCaption")}</caption>
+        <thead>
+          <tr>
+            <th scope="col">{t("stats.kvColLayer")}</th>
+            <th scope="col">{t("stats.kvColKeys")}</th>
+            <th scope="col">{t("stats.kvColValues")}</th>
+            <th scope="col">{t("stats.kvColBoth")}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {#each { length: cache.layers }, layer (layer)}
+            <tr>
+              <th scope="row">{t("stats.layerN", { n: layer + 1 })}</th>
+              <td>{formatNumber(cache.keys)}</td>
+              <td>{formatNumber(cache.values)}</td>
+              <td>{formatNumber(cache.perLayer)}</td>
+            </tr>
+          {/each}
+        </tbody>
+        <tfoot>
+          <tr>
+            <th scope="row">{t("stats.total")}</th>
+            <td>{formatNumber(cache.layers * cache.keys)}</td>
+            <td>{formatNumber(cache.layers * cache.values)}</td>
+            <td>{formatNumber(cache.total)}</td>
+          </tr>
+        </tfoot>
       </table>
     </div>
   {/snippet}

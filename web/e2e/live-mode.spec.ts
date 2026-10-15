@@ -121,6 +121,29 @@ test("use Live mode", async ({ page }) => {
   await expect(page.getByRole("list", { name: "Tokens" }).getByRole("listitem")).toHaveCount(12);
 });
 
+// Each Position adds 768 float32 numbers, 3,072 bytes, to every layer's K and to its V. The
+// village Prompt is 12 Positions: 36,864 bytes each, 884,736 in all 12 layers. One Step makes
+// 13: 39,936 bytes each, 958,464 in all. Live mode can take 64 Steps, so the run reaches 76.
+test("the KV cache grows as Live mode steps", async ({ page }) => {
+  await page.goto("/?mode=live&view=statistics&lang=en");
+  await expect(page.getByRole("status").filter({ hasText: "The server is ready" })).toBeVisible();
+  await page.getByRole("textbox", { name: "Your Prompt" }).fill(VILLAGE);
+  await page.getByRole("button", { name: "Run the model" }).click();
+
+  const section = page.getByRole("region", { name: "KV cache, layer by layer" });
+  const layers = section.getByRole("list", { name: "Keys and values in each layer" }).getByRole("listitem");
+  await expect(section).toContainText("12 Positions");
+  await expect(layers.first()).toContainText("K 36.9 kB · V 36.9 kB");
+  await expect(section).toContainText("885 kB");
+  await expect(section).toContainText("the 76 Positions this run can reach");
+
+  await page.getByRole("button", { name: "Next token" }).click();
+  await expect(page).toHaveURL(/step=1/);
+  await expect(section).toContainText("13 Positions");
+  await expect(layers.nth(11)).toContainText("K 39.9 kB · V 39.9 kB");
+  await expect(section).toContainText("958 kB");
+});
+
 test("a limit error from the server is shown as a clear message", async ({ page }) => {
   // Clicking Run before the token preview arrives sends the Prompt anyway; the server rejects it.
   await page.goto("/?mode=live&lang=en");

@@ -140,7 +140,7 @@
     {:else if route.view === "predict"}
       <PredictionView trace={shown} canAdvance={route.step < limit} />
     {:else if route.view === "statistics"}
-      <StatisticsView trace={shown} />
+      <StatisticsView trace={shown} {limit} />
     {/if}
   </main>
 </div>

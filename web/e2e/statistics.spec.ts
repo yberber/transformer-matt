@@ -60,6 +60,41 @@ test("read the statistics", async ({ page }) => {
   await expect(page.getByRole("heading", { level: 2 })).toHaveText("How we calculate");
 });
 
+// Every layer keeps a key and a value of 768 float32 numbers for each Position: 3,072 bytes
+// each, 73,728 bytes per Position in all 12 layers. The village text at Step 5 holds 17
+// Positions: 52,224 bytes of K and as many of V in each layer, 1,253,376 bytes in all. At
+// Step 6, 18 Positions: 55,296 bytes each, 1,327,104 in all.
+test("watch the KV cache grow, layer by layer", async ({ page }) => {
+  await page.goto("/?example=village&view=statistics&step=5&lang=en");
+  const section = page.getByRole("region", { name: "KV cache, layer by layer" });
+  await expect(section.getByRole("link", { name: "Theoretical Estimate: how we calculate" })).toBeVisible();
+  await expect(section).toContainText("float32");
+  await expect(section).toContainText("17 Positions");
+  await expect(section).toContainText("1.25 MB");
+  await expect(section).toContainText("73.7 kB");
+
+  // Each layer's K and V, all 12 of them.
+  const layers = section.getByRole("list", { name: "Keys and values in each layer" }).getByRole("listitem");
+  await expect(layers).toHaveCount(12);
+  await expect(layers.first()).toContainText("Layer 1");
+  await expect(layers.nth(11)).toContainText("Layer 12");
+  await expect(layers.nth(11)).toContainText("K 52.2 kB");
+  await expect(layers.nth(11)).toContainText("V 52.2 kB");
+
+  // They grow as the user steps.
+  await page.getByRole("button", { name: "Next token" }).click();
+  await expect(section).toContainText("18 Positions");
+  await expect(layers.first()).toContainText("K 55.3 kB");
+  await expect(layers.first()).toContainText("V 55.3 kB");
+  await expect(section).toContainText("1.33 MB");
+
+  // The exact bytes behind them.
+  await page.getByText("Show details").click();
+  const exact = page.getByRole("table", { name: "The KV cache, exactly" });
+  await expect(exact.getByRole("row", { name: /^Layer 12/ })).toContainText("55,296");
+  await expect(exact.getByRole("row", { name: /^Total/ })).toContainText("1,327,104");
+});
+
 // One token reading n Positions costs 247,064,064 FLOPs for everything but attention, plus
 // 18,432n for the attention scores and as much for the weighted sum. At 17 Positions the scores
 // are 313,344 of 247,690,752 (0.127%); at 1024, 18,874,368 of 284,812,800 (6.63%).
