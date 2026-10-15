@@ -2,12 +2,15 @@
 validate against the committed contract schema."""
 
 import base64
+import itertools
 import json
 import logging
 import socket
 import threading
 import time
+from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 
 import httpx
 import pytest
@@ -46,11 +49,45 @@ def wait_until_ready(client: httpx.Client, timeout: float = 120.0):
     return response
 
 
+@contextmanager
+def serving(app) -> Iterator[int]:
+    """Runs the app on a real server on a spare port, configured as `uv run serve` does."""
+    with socket.socket() as probe:
+        probe.bind(("127.0.0.1", 0))
+        port = probe.getsockname()[1]
+    server = uvicorn.Server(uvicorn_config(app, "127.0.0.1", port))
+    thread = threading.Thread(target=server.run, daemon=True)
+    thread.start()
+    try:
+        deadline = time.monotonic() + 60
+        while not server.started and time.monotonic() < deadline:
+            time.sleep(0.05)
+        yield port
+    finally:
+        server.should_exit = True
+        thread.join(timeout=10)
+
+
 @pytest.fixture(scope="module")
-def client():
-    with TestClient(create_app()) as client:
+def app():
+    """One app with the model loaded, for every test of this module."""
+    app = create_app()
+    with TestClient(app) as client:
         assert wait_until_ready(client).status_code == 200
-        yield client
+        yield app
+
+
+_client_ips = (f"192.0.2.{n}" for n in itertools.count(1))
+
+
+def client_of(app) -> TestClient:
+    """A client with an IP of its own, so that each counts against its own rate limits."""
+    return TestClient(app, client=(next(_client_ips), 50000))
+
+
+@pytest.fixture
+def client(app):
+    return client_of(app)
 
 
 def test_health_is_503_while_the_model_loads_and_ready_afterwards():
@@ -267,17 +304,8 @@ def test_no_prompt_text_appears_in_any_log_record(monkeypatch, capfd):
 
     monkeypatch.setattr(logging.Logger, "makeRecord", recording)
     monkeypatch.setattr(logging.Logger, "isEnabledFor", lambda self, level: True)
-    with socket.socket() as probe:
-        probe.bind(("127.0.0.1", 0))
-        port = probe.getsockname()[1]
-    server = uvicorn.Server(uvicorn_config(create_app(), "127.0.0.1", port))
-    thread = threading.Thread(target=server.run, daemon=True)
-    thread.start()
-    try:
+    with serving(create_app()) as port:
         with httpx.Client(base_url=f"http://127.0.0.1:{port}", timeout=60) as http:
-            deadline = time.monotonic() + 60
-            while not server.started and time.monotonic() < deadline:
-                time.sleep(0.05)
             assert wait_until_ready(http).status_code == 200
 
             responses = [
@@ -291,9 +319,6 @@ def test_no_prompt_text_appears_in_any_log_record(monkeypatch, capfd):
                 http.get("/tokenize", params={"prompt": prompt}),
                 http.post("/nowhere", json={"prompt": prompt}),
             ]
-    finally:
-        server.should_exit = True
-        thread.join(timeout=10)
 
     assert [response.status_code for response in responses] == [200, 200, 422, 422, 422, 422, 422, 405, 404]
     assert records, "expected the server to log something, such as its startup"
@@ -303,13 +328,16 @@ def test_no_prompt_text_appears_in_any_log_record(monkeypatch, capfd):
     assert not leaks, leaks
 
 
-def test_concurrent_steps_each_match_their_example_file(client):
+def test_concurrent_steps_each_match_their_example_file(app):
     """Forward passes run side by side in the thread pool, and must not mix up each
-    other's recorded values."""
+    other's recorded values. Each Example comes from a client of its own, as one client
+    may have only 2 requests in flight."""
+
+    def run(example):
+        return client_of(app).post("/step", json={"prompt": example.prompt, "advance": STEPS})
+
     with ThreadPoolExecutor(len(EXAMPLES)) as pool:
-        responses = list(
-            pool.map(lambda example: client.post("/step", json={"prompt": example.prompt, "advance": STEPS}), EXAMPLES)
-        )
+        responses = list(pool.map(run, EXAMPLES))
     for example, response in zip(EXAMPLES, responses):
         assert response.status_code == 200, example.id
         assert_same_trace(as_trace(assert_valid(response, "StepResponse")), read_example(example.id))

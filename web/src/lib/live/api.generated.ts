@@ -36,6 +36,7 @@ export interface Error {
     | "empty_prompt"
     | "invalid_request"
     | "model_loading"
+    | "rate_limited"
     | "not_found"
     | "method_not_allowed";
   message: string;

@@ -11,7 +11,11 @@ export const MAX_CONTINUATION_TOKENS = 64;
 export type LiveErrorCode = Api.Error["code"] | "unavailable";
 
 export class LiveApiError extends Error {
-  constructor(readonly code: LiveErrorCode) {
+  /** For "rate_limited": how many seconds to wait before continuing, if the server said. */
+  constructor(
+    readonly code: LiveErrorCode,
+    readonly retryAfter?: number,
+  ) {
     super(`Live API: ${code}`);
   }
 }
@@ -22,8 +26,18 @@ function isApiError(body: unknown): body is Api.Error {
   return typeof body === "object" && body !== null && typeof (body as Api.Error).code === "string";
 }
 
-/** The call's JSON response, with its HTTP status. */
-async function call(path: string, signal: AbortSignal, body?: unknown): Promise<{ status: number; json: unknown }> {
+/** Retry-After in whole seconds, as the server sends it; absent otherwise. */
+function retryAfter(headers: Headers): number | undefined {
+  const value = headers.get("Retry-After")?.trim();
+  return value && /^\d+$/.test(value) ? Number(value) : undefined;
+}
+
+/** The call's JSON response, with its HTTP status and headers. */
+async function call(
+  path: string,
+  signal: AbortSignal,
+  body?: unknown,
+): Promise<{ status: number; json: unknown; headers: Headers }> {
   try {
     const response = await fetch(`${API_BASE}${path}`, {
       method: body === undefined ? "GET" : "POST",
@@ -34,7 +48,7 @@ async function call(path: string, signal: AbortSignal, body?: unknown): Promise<
     const json: unknown = await response.json().catch(() => undefined);
     // json() swallows an abort while reading the body, so check for one here.
     signal.throwIfAborted();
-    return { status: response.status, json };
+    return { status: response.status, json, headers: response.headers };
   } catch (error) {
     // A cancelled call stays cancelled; a timeout or a network failure means no server.
     if (signal.reason instanceof DOMException && signal.reason.name === "AbortError") throw error;
@@ -43,10 +57,10 @@ async function call(path: string, signal: AbortSignal, body?: unknown): Promise<
 }
 
 async function post<T>(path: string, body: unknown, signal: AbortSignal): Promise<T> {
-  const { status, json } = await call(path, signal, body);
+  const { status, json, headers } = await call(path, signal, body);
   if (status === 200) return json as T;
   // A proxy with no server behind it answers too (502), but not with the API's error shape.
-  throw new LiveApiError(isApiError(json) ? json.code : "unavailable");
+  throw new LiveApiError(isApiError(json) ? json.code : "unavailable", retryAfter(headers));
 }
 
 /** "ready", or "loading" while the model loads (503); anything else means unavailable. */

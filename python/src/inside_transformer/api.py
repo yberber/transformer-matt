@@ -101,6 +101,8 @@ ErrorCode = Literal[
     "invalid_request",
     # The model is still loading; retry once Health reports ready.
     "model_loading",
+    # The client is over a rate limit; retry after the seconds in the Retry-After header.
+    "rate_limited",
     # No such endpoint, or not with this HTTP method.
     "not_found",
     "method_not_allowed",

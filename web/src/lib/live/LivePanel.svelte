@@ -3,7 +3,7 @@
   // preview and an "n / 64" count, and Run. If the server is unavailable, says so with one
   // click back to Example mode.
   import { navigate } from "../app/route.svelte";
-  import { t, type MessageKey } from "../i18n/i18n";
+  import { t, tPlural, type MessageKey } from "../i18n/i18n";
   import { positionColor } from "../tokens/color";
   import TokenText from "../tokens/TokenText.svelte";
   import { MAX_CONTINUATION_TOKENS, MAX_PROMPT_TOKENS, type LiveErrorCode } from "./api";
@@ -29,6 +29,12 @@
   const count = $derived(live.preview?.count ?? 0);
   const canRun = $derived(live.status === "ready" && live.prompt.trim() !== "" && !live.tooLong && !live.busy);
   const nonEnglish = $derived(looksNonEnglish(live.prompt));
+  const errorMessage = $derived.by(() => {
+    if (live.error !== "rate_limited") return live.error && t(ERROR[live.error] ?? "live.error.failed", limits);
+    return live.retryAfter === undefined
+      ? t("live.error.rateLimitedMoment")
+      : tPlural("live.error.rateLimited", live.retryAfter);
+  });
 
   function submit(event: SubmitEvent) {
     event.preventDefault();
@@ -81,8 +87,8 @@
     {#if nonEnglish}
       <p class="notice warning">{t("live.nonEnglish")}</p>
     {/if}
-    {#if live.error}
-      <p class="notice alert" role="alert">{t(ERROR[live.error] ?? "live.error.failed", limits)}</p>
+    {#if errorMessage}
+      <p class="notice alert" role="alert">{errorMessage}</p>
     {/if}
 
     {#if live.preview?.tokens.length}

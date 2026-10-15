@@ -39,6 +39,8 @@ cd python
 uv run serve       # http://127.0.0.1:8000; set HOST and PORT to change it
 ```
 
+Set `TRUSTED_PROXIES` to the reverse proxy's addresses (comma-separated IPs or CIDR ranges, default `127.0.0.1,::1`). The rate limits read a client's IP from `X-Forwarded-For` only in requests that come from one of these addresses. For any other request they use the connecting address and ignore the header.
+
 The model loads in the background after startup, and `GET /health` answers 503 `{"status": "loading"}` until it is ready, then 200 `{"status": "ready"}`. Forward passes run in a pool of two threads, and torch's thread count is set to the available cores divided between them.
 
 | Endpoint | Request | Response |
@@ -49,14 +51,16 @@ The model loads in the background after startup, and `GET /health` answers 503 `
 
 With Prompt text, Step runs the Prompt and takes `k` Steps, and the response holds every Position from 0: it has the shape of an Example file, plus `first_position: 0`. With token IDs (the Prompt and the Continuation so far), Step reruns them, takes `k` more Steps and returns only the `k` new Positions, starting at `first_position` = the number of IDs sent. The Continuation is never re-tokenized. `advance` 0 is prefill only, 1 is the next token, and `N` restores a shared Live link in one request. The KV cache is reused across the Steps of one request.
 
-Errors return `{"code": …, "message": …}`. The web app words its own message from `code`, and `message` is for developers. Limit errors are 422 with code `prompt_too_long` (more than 64 Prompt tokens) or `continuation_too_long` (more than 64 Continuation tokens in all). Other 422 codes are `empty_prompt` and `invalid_request`. While the model loads, tokenize and Step return 503 `model_loading`. An unknown path is 404 `not_found`, and a wrong method is 405 `method_not_allowed`. Every response matches `contract/api.schema.json`. Two Step requests can run side by side, each in its own forward-pass thread. Ticket 15 adds the per-client rate limits and the 429 responses.
+Errors return `{"code": …, "message": …}`. The web app words its own message from `code`, and `message` is for developers. Limit errors are 422 with code `prompt_too_long` (more than 64 Prompt tokens) or `continuation_too_long` (more than 64 Continuation tokens in all). Other 422 codes are `empty_prompt` and `invalid_request`. While the model loads, tokenize and Step return 503 `model_loading`. An unknown path is 404 `not_found`, and a wrong method is 405 `method_not_allowed`. Every response matches `contract/api.schema.json`. Two Step requests can run side by side, each in its own forward-pass thread, and further ones wait for a free thread.
+
+Each client IP may make 120 tokenize calls and 60 Step requests a minute, and have at most 2 tokenize or Step requests in flight. A Step request counts once however many Steps it takes, so restoring a shared Live link costs one. Over a limit, the server answers 429 `rate_limited` with a `Retry-After` header in seconds. For the per-minute limits, that is the time until the client's oldest counted request is a minute old. For requests in flight, it is 1. Refused requests are not counted. The counts live in memory only, and a client's are dropped within two minutes of its last request.
 
 The server never logs a request body or Prompt text, and stores nothing. uvicorn's access log is off, because it would record query strings. The reverse proxy keeps the access log instead. `uv run pytest` runs a real server and fails if any Prompt text reaches a log record (at any level), stdout or stderr.
 
 ## Test
 
 ```sh
-cd python && uv run pytest     # Example files vs an independent Hugging Face greedy run (tokens, predictions, embeddings, attention, MLP impact, logit lens), selection rules, regeneration reproduces the committed files, size budget, schema drift; the inference server's API against the real model (responses validate against the committed schema, each Example Prompt with `advance` 16 matches its Example file, limit errors, health while loading, no Prompt text in logs)
+cd python && uv run pytest     # Example files vs an independent Hugging Face greedy run (tokens, predictions, embeddings, attention, MLP impact, logit lens), selection rules, regeneration reproduces the committed files, size budget, schema drift; the inference server's API against the real model (responses validate against the committed schema, each Example Prompt with `advance` 16 matches its Example file, limit errors, health while loading, no Prompt text in logs, each rate limit's 429 with Retry-After, a forwarded client IP trusted only from a trusted proxy)
 
 cd web
 npm run check                  # typecheck (svelte-check)

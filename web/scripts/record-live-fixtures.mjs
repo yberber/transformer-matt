@@ -1,6 +1,7 @@
 // Records the Live-API fixtures under tests/fixtures/live/ from the real inference
 // server, which this script starts (`uv run serve` in ../python) on a spare port.
-// The loading-state responses are recorded first, while the model is still loading.
+// The loading-state responses are recorded first, while the model is still loading,
+// and the rate-limited one last.
 // Run with `npm run record:fixtures`; `npm test` validates them against the schema.
 import { spawn } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
@@ -60,6 +61,10 @@ try {
   await record("step-token-ids", await call("/step", { ...step, advance: 1 }), 200);
   await record("error-prompt-too-long", await call("/step", { prompt: LONG_PROMPT, advance: 0 }), 422);
   await record("error-continuation-too-long", await call("/step", { ...step, advance: 64 }), 422);
+  // Last, as it uses up the tokenize rate limit (120 calls a minute).
+  let limited = await call("/tokenize", { prompt: PROMPT });
+  for (let calls = 1; calls <= 120 && limited.status === 200; calls++) limited = await call("/tokenize", { prompt: PROMPT });
+  await record("error-rate-limited", limited, 429);
 } finally {
   server.kill();
 }

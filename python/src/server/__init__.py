@@ -1,7 +1,8 @@
 """The inference server: Live mode's HTTP API over the Python core.
 
 Run with `uv run serve`. One uvicorn worker process; forward passes run in a
-thread pool, and torch's thread count is set from the core count.
+thread pool, and torch's thread count is set from the core count. Each client is
+rate limited by IP, in memory only (`server.rate_limits`).
 """
 
 import asyncio
@@ -9,6 +10,7 @@ import copy
 import logging
 import os
 import threading
+import time
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
@@ -19,6 +21,8 @@ from fastapi import Depends, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException
+from starlette.types import ASGIApp, Receive, Scope, Send
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 import inside_transformer
 from inside_transformer.api import (
@@ -34,11 +38,20 @@ from inside_transformer.api import (
     TokenizeRequest,
     TokenizeResponse,
 )
+from server.rate_limits import RateLimited, RateLimiter
 
 logger = logging.getLogger(__name__)
 
 # Forward passes run in a thread pool of this many threads, which share the CPU cores.
+# The pool is the cap on concurrent forward passes: further requests wait for a free thread.
 FORWARD_PASS_THREADS = 2
+# How many requests a client may make to each limited path a minute.
+REQUESTS_PER_MINUTE = {"/tokenize": 120, "/step": 60}
+# How many requests to those paths a client may have in flight at once.
+REQUESTS_IN_FLIGHT = 2
+# The reverse proxy's addresses, comma-separated (IPs or CIDR ranges). Only a request
+# from one of them may say whose request it forwards, in X-Forwarded-For.
+TRUSTED_PROXIES = "127.0.0.1,::1"
 # The HTTP status of each error code.
 ERROR_STATUS: dict[ErrorCode, int] = {
     "prompt_too_long": 422,
@@ -46,11 +59,12 @@ ERROR_STATUS: dict[ErrorCode, int] = {
     "empty_prompt": 422,
     "invalid_request": 422,
     "model_loading": 503,
+    "rate_limited": 429,
     "not_found": 404,
     "method_not_allowed": 405,
 }
 HTTP_ERROR_CODES: dict[int, ErrorCode] = {404: "not_found", 405: "method_not_allowed"}
-ERROR_RESPONSES = {422: {"model": Error}, 503: {"model": Error}}
+ERROR_RESPONSES = {422: {"model": Error}, 429: {"model": Error}, 503: {"model": Error}}
 
 
 class ApiError(Exception):
@@ -59,8 +73,32 @@ class ApiError(Exception):
         self.error = Error(code=code, message=message)
 
 
-def _error_response(error: Error) -> JSONResponse:
-    return JSONResponse(error.model_dump(), status_code=ERROR_STATUS[error.code])
+def _error_response(error: Error, headers: dict[str, str] | None = None) -> JSONResponse:
+    return JSONResponse(error.model_dump(), status_code=ERROR_STATUS[error.code], headers=headers)
+
+
+class RateLimitMiddleware:
+    """Admits each request to a limited path through the rate limiter, by client IP,
+    before reading its body; over a limit, answers 429 with Retry-After."""
+
+    def __init__(self, app: ASGIApp, limiter: RateLimiter):
+        self.app = app
+        self.limiter = limiter
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        path = scope.get("path")
+        if scope["type"] != "http" or path not in REQUESTS_PER_MINUTE:
+            return await self.app(scope, receive, send)
+        client = scope["client"][0] if scope.get("client") else ""
+        try:
+            finished = self.limiter.admit(client, path)
+        except RateLimited as limited:
+            error = Error(code="rate_limited", message=str(limited))
+            return await _error_response(error, {"Retry-After": str(limited.retry_after)})(scope, receive, send)
+        try:
+            await self.app(scope, receive, send)
+        finally:
+            finished()
 
 
 def _check_prompt_characters(prompt: str) -> None:
@@ -102,8 +140,14 @@ def _torch_threads() -> int:
     return max(1, cores // FORWARD_PASS_THREADS)
 
 
-def create_app(load_model: Callable[[], None] = inside_transformer.load) -> FastAPI:
-    """The app; `load_model` loads the model in the background while Health reports 503."""
+def create_app(
+    load_model: Callable[[], None] = inside_transformer.load,
+    clock: Callable[[], float] = time.monotonic,
+    trusted_proxies: str = TRUSTED_PROXIES,
+) -> FastAPI:
+    """The app; `load_model` loads the model in the background while Health reports 503,
+    the rate limits count time by `clock`, and a client's IP is taken from X-Forwarded-For
+    only in requests from `trusted_proxies`."""
     loaded = threading.Event()
 
     def load() -> None:
@@ -126,6 +170,9 @@ def create_app(load_model: Callable[[], None] = inside_transformer.load) -> Fast
             raise ApiError("model_loading", "The model is still loading.")
 
     app = FastAPI(title="Inside the Transformer", lifespan=lifespan)
+    # The last added runs first: the client IP is settled before the rate limits see it.
+    app.add_middleware(RateLimitMiddleware, limiter=RateLimiter(REQUESTS_PER_MINUTE, REQUESTS_IN_FLIGHT, clock))
+    app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=trusted_proxies)
 
     @app.exception_handler(ApiError)
     async def api_error(_: Request, error: ApiError):
@@ -170,13 +217,17 @@ def create_app(load_model: Callable[[], None] = inside_transformer.load) -> Fast
 
 def uvicorn_config(app: FastAPI, host: str, port: int) -> uvicorn.Config:
     """One worker process, and no access log: Prompt text must never reach a log, and
-    the reverse proxy keeps the access log (method, path without query, status, timing)."""
+    the reverse proxy keeps the access log (method, path without query, status, timing).
+    The app reads X-Forwarded-For itself, so uvicorn's own proxy headers are off."""
     log_config = copy.deepcopy(uvicorn.config.LOGGING_CONFIG)
     log_config["loggers"][__name__] = {"handlers": ["default"], "level": "INFO", "propagate": False}
-    return uvicorn.Config(app, host=host, port=port, workers=1, access_log=False, log_config=log_config)
+    return uvicorn.Config(
+        app, host=host, port=port, workers=1, access_log=False, log_config=log_config, proxy_headers=False
+    )
 
 
 def main() -> None:
     host = os.environ.get("HOST", "127.0.0.1")
     port = int(os.environ.get("PORT", "8000"))
-    uvicorn.Server(uvicorn_config(create_app(), host, port)).run()
+    app = create_app(trusted_proxies=os.environ.get("TRUSTED_PROXIES", TRUSTED_PROXIES))
+    uvicorn.Server(uvicorn_config(app, host, port)).run()

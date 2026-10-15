@@ -20,6 +20,13 @@ const FIRST_RETRY_MS = 1_000;
 const MAX_RETRY_MS = 8_000;
 /** Typing is tokenized once it pauses for this long. */
 const TOKENIZE_DEBOUNCE_MS = 300;
+/** When rate limited without being told for how long, the wait before retrying. */
+const DEFAULT_WAIT_S = 1;
+
+/** How long a rate-limited call must wait before it is made again. */
+function waitMs(error: LiveApiError): number {
+  return (error.retryAfter ?? DEFAULT_WAIT_S) * 1000;
+}
 
 function sleep(ms: number, signal: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -39,13 +46,16 @@ class LiveSession {
   trace = $state.raw<Trace>();
   /** Whether a Step request is on its way. */
   busy = $state(false);
-  /** Why the last run or Step failed, other than the server being unavailable. */
+  /** Why the last call failed, other than the server being unavailable. */
   error = $state<LiveErrorCode>();
+  /** While rate limited: how many seconds the server asked to wait, if it said. */
+  retryAfter = $state<number>();
 
   #health?: AbortController;
   #tokenize?: AbortController;
   #tokenizeTimer?: ReturnType<typeof setTimeout>;
   #step?: AbortController;
+  #waitTimer?: ReturnType<typeof setTimeout>;
 
   /** Enters Live mode: checks the server unless it is known to be ready. */
   activate(): void {
@@ -58,6 +68,7 @@ class LiveSession {
     this.#tokenize?.abort();
     this.#step?.abort();
     clearTimeout(this.#tokenizeTimer);
+    clearTimeout(this.#waitTimer);
     this.busy = false;
     this.status = "off";
   }
@@ -116,7 +127,19 @@ class LiveSession {
     if (!(error instanceof LiveApiError)) throw error;
     if (error.code === "unavailable") this.status = "unavailable";
     else if (error.code === "model_loading") void this.#checkHealth();
+    else if (error.code === "rate_limited") this.#showWait(error);
     else this.error = error.code;
+  }
+
+  /** Rate limited: says how long to wait, until the wait is over. */
+  #showWait(error: LiveApiError): void {
+    this.error = "rate_limited";
+    this.retryAfter = error.retryAfter;
+    clearTimeout(this.#waitTimer);
+    this.#waitTimer = setTimeout(() => {
+      if (this.error === "rate_limited") this.error = undefined;
+      this.retryAfter = undefined;
+    }, waitMs(error));
   }
 
   async #checkHealth(): Promise<void> {
@@ -164,7 +187,11 @@ class LiveSession {
       if (error instanceof LiveApiError && error.code === "prompt_too_long") {
         this.preview = undefined;
         this.tooLong = true;
-      } else this.#fail(error);
+      } else {
+        this.#fail(error);
+        // The preview is tokenized again once the wait is over.
+        if (error instanceof LiveApiError && error.code === "rate_limited") this.#scheduleTokenize(waitMs(error));
+      }
     }
   }
 }

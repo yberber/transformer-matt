@@ -144,3 +144,24 @@ test("Live mode warms up while the model loads", async ({ page }) => {
   await expect(page.getByRole("status").filter({ hasText: "warming up" })).toBeVisible();
   await expect(page.getByRole("status").filter({ hasText: "The server is ready" })).toBeVisible({ timeout: 10_000 });
 });
+
+test("a rate-limited user is told when they can continue", async ({ page }) => {
+  await page.clock.install();
+  await page.goto("/?mode=live&lang=en");
+  await expect(page.getByRole("status").filter({ hasText: "The server is ready" })).toBeVisible();
+  await page.route("**/api/step", (route) =>
+    route.fulfill({
+      status: 429,
+      headers: { "Retry-After": "30" },
+      json: { code: "rate_limited", message: "Rate limited; retry after 30 s." },
+    }),
+  );
+  await page.getByRole("textbox", { name: "Your Prompt" }).fill(VILLAGE);
+  await page.getByRole("button", { name: "Run the model" }).click();
+  const alert = page.getByRole("alert");
+  await expect(alert).toContainText("You can continue in 30 seconds.");
+
+  // Once the wait is over, the message goes.
+  await page.clock.fastForward(30_000);
+  await expect(alert).toHaveCount(0);
+});

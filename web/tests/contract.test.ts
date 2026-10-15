@@ -50,6 +50,7 @@ const LIVE_FIXTURES = [
   ["error-prompt-too-long", "Error"],
   ["error-continuation-too-long", "Error"],
   ["error-model-loading", "Error"],
+  ["error-rate-limited", "Error"],
 ] as const;
 const api = new Ajv2020({ allErrors: true }).addSchema(JSON.parse(readFileSync(API_SCHEMA_PATH, "utf-8")), "api");
 const readFixture = (name: string) => JSON.parse(readFileSync(new URL(`${name}.json`, FIXTURES_DIR), "utf-8"));
