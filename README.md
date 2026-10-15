@@ -39,6 +39,12 @@ npx playwright install chromium   # once
 npm run test:e2e               # Playwright against the built site
 ```
 
+## CI
+
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on every push. One job runs pytest, whose checks include schema drift and byte-identical regeneration. The other runs the typecheck, Vitest and Playwright. Python dependencies come from `uv sync --locked` and web dependencies from `npm ci`, with Node at the `.nvmrc` version. The pinned GPT-2 model is cached between runs under a key that contains its revision.
+
+The workflow only runs once the repo has a GitHub remote. Add one and push (`git remote add origin <url> && git push -u origin main`) to start it.
+
 ## Regenerate Example data
 
 ```sh

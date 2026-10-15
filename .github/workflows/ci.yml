@@ -1,0 +1,91 @@
+name: CI
+
+on:
+  push:
+
+permissions:
+  contents: read
+
+jobs:
+  python:
+    name: Python core and Example data (pytest)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: python
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v10.3.0  # setup-uv publishes no floating major tag
+        with:
+          working-directory: python
+          enable-cache: true
+          cache-dependency-glob: uv.lock  # relative to working-directory
+
+      - name: Install Python dependencies
+        run: uv sync --locked
+
+      - name: Read the pinned model revision
+        id: model
+        run: echo "revision=$(uv run python -c 'from inside_transformer import MODEL_REVISION; print(MODEL_REVISION)')" >> "$GITHUB_OUTPUT"
+
+      - name: Cache the pinned Hugging Face model
+        id: hf-cache
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/huggingface/hub
+          key: hf-hub-${{ steps.model.outputs.revision }}
+
+      # Fetch the files the core loads up front: an exact cache hit is never re-saved,
+      # so whatever the first run happened to download would otherwise stay frozen in the cache.
+      - name: Download the pinned Hugging Face model
+        if: steps.hf-cache.outputs.cache-hit != 'true'
+        run: |
+          uv run python - <<'EOF'
+          from huggingface_hub import snapshot_download
+          from inside_transformer import MODEL_ID, MODEL_REVISION
+
+          snapshot_download(
+              MODEL_ID,
+              revision=MODEL_REVISION,
+              allow_patterns=["*config.json", "tokenizer.json", "vocab.json", "merges.txt", "model.safetensors"],
+              ignore_patterns=["onnx/*"],
+          )
+          EOF
+
+      # Includes the schema drift check (committed schema vs the Pydantic export)
+      # and the byte-identical regeneration check on the committed Example files.
+      - name: pytest
+        run: uv run pytest
+
+  web:
+    name: Web app (typecheck, Vitest, Playwright)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install web dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run check
+
+      # Includes the check that the generated TypeScript types match the committed schema.
+      - name: Vitest
+        run: npm test
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Playwright
+        run: npm run test:e2e
+
