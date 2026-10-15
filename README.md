@@ -6,7 +6,7 @@ A website that shows curious non-experts how GPT-2 small turns a piece of text i
 
 | Path | What it holds |
 | --- | --- |
-| `python/` | The Python core (`inside_transformer`): tokenizes Prompts and builds Traces. Also the regeneration script (`regenerate`). |
+| `python/` | The Python core (`inside_transformer`): tokenizes Prompts, runs GPT-2 greedily for a number of Steps and builds Traces. Also the regeneration script (`regenerate`) and the Example selection script (`regenerate.selection`). |
 | `contract/trace.schema.json` | The committed contract schema, exported from the core's Pydantic models. |
 | `web/` | The web app (Svelte 5, Vite, TypeScript). |
 | `web/public/data/` | Generated Example files (readable `.json` and brotli `.json.br`) and the pinned GPT-2 config. |
@@ -30,11 +30,11 @@ npm run build      # static build in web/dist
 ## Test
 
 ```sh
-cd python && uv run pytest     # Example files vs an independent Hugging Face run, byte-identical regeneration, size budget, schema drift
+cd python && uv run pytest     # Example files vs an independent Hugging Face greedy run, selection rules, byte-identical regeneration, size budget, schema drift
 
 cd web
 npm run check                  # typecheck (svelte-check)
-npm test                       # Vitest: Example files validate against the committed schema; generated types are current; every translation key exists in all three languages
+npm test                       # Vitest: Example files validate against the committed schema and match the web app's Example list; generated types are current; every translation key exists in all three languages
 npx playwright install chromium   # once
 npm run test:e2e               # Playwright against the built site
 ```
@@ -43,7 +43,7 @@ npm run test:e2e               # Playwright against the built site
 
 The UI is in English, Turkish and German. English in `web/src/lib/i18n/messages/en.ts` is the source; `tr.ts` and `de.ts` translate every key, and `npm test` fails if a key, `{parameter}` or technical term is missing in either. Technical terms (token, embedding, attention, layer) stay in English and are marked `[[term|text]]`, which renders the text with a short explanation from `term.<term>` in the reader's language. The Turkish and German drafts need native-speaker review before release.
 
-View state (`example`, `view`, `lang`) lives in the query string, so a URL reopens the same view.
+View state (`example`, `view`, `step`, `lang`) lives in the query string, so a URL reopens the same view. `step` runs from 0 (the Prompt alone) to 16.
 
 ## CI
 
@@ -58,7 +58,16 @@ cd python
 uv run regenerate
 ```
 
-This rewrites every Example file under `web/public/data/examples/` and copies the pinned model config to `web/public/data/gpt2-config.json`. Regeneration is deterministic: running it again must produce byte-identical files, and `uv run pytest` checks that. Commit the regenerated files.
+This rewrites every Example file under `web/public/data/examples/` (each Prompt plus 16 greedy Steps) and copies the pinned model config to `web/public/data/gpt2-config.json`. Regeneration is deterministic: running it again must produce byte-identical files, and `uv run pytest` checks that. Commit the regenerated files.
+
+### Choose the Examples
+
+```sh
+cd python
+uv run select-examples
+```
+
+This runs every drafted candidate Prompt in `src/regenerate/selection.py` and checks it against the selection rules from the spec. A candidate's Prompt length must fall in its band (short 8–12, medium 22–28, long 44–48 tokens). Its 16 Continuation tokens must not repeat a token 3-gram, the top-1 must beat the top-2 by at least 0.001 at every Step, there must be no newline-only token, and the Prompt must not be a question. The script then prints the two qualifying candidates with the largest minimum margin in each band, keeping at least one word split into several tokens. Read the printed Continuations for anything offensive, since no script can check that. Then copy the selection into `EXAMPLES` in `src/regenerate/__init__.py` and the web app's list in `web/src/lib/trace/examples.ts`, and regenerate.
 
 ## Change the contract
 

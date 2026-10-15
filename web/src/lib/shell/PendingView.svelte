@@ -7,7 +7,7 @@
   import type { Trace } from "../trace/decode";
   import ViewFrame from "./ViewFrame.svelte";
 
-  let { view, trace }: { view: Exclude<View, "tokenize">; trace: Trace } = $props();
+  let { view, trace }: { view: Exclude<View, "tokenize" | "predict">; trace: Trace } = $props();
 
   const { header } = $derived(trace);
   const config = $derived(header.config);
@@ -26,8 +26,6 @@
           { name: "n_embd / n_head", label: "config.head_dim", value: config.n_embd / config.n_head },
           row("n_embd"),
         ];
-      case "predict":
-        return [row("vocab_size"), row("n_embd")];
     }
   });
 </script>

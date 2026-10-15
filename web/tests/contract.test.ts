@@ -2,6 +2,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import { describe, expect, it } from "vitest";
+import { EXAMPLE_IDS } from "../src/lib/trace/examples";
 // @ts-expect-error: plain ESM script without type declarations
 import { SCHEMA_PATH, TYPES_PATH, generateTraceTypes } from "../scripts/gen-types.mjs";
 
@@ -12,8 +13,8 @@ const validate = new Ajv2020({ allErrors: true }).compile(
 );
 
 describe("Example files", () => {
-  it("exist", () => {
-    expect(exampleFiles.length).toBeGreaterThan(0);
+  it("are exactly the Examples the web app lists", () => {
+    expect(exampleFiles.map((name) => name.replace(/\.json$/, "")).sort()).toEqual([...EXAMPLE_IDS].sort());
   });
 
   it.each(exampleFiles)("%s validates against the committed schema", (name) => {

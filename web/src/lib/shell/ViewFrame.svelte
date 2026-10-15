@@ -1,10 +1,12 @@
 <script lang="ts">
-  // Every view's frame, a specimen card: a catalogue label, the one-sentence
+  // Every view's frame, a specimen card: a catalogue label (number, stage, Step), the one-sentence
   // plain-language explanation first, then the view, then the exact numbers
   // behind "Show details".
   import type { Snippet } from "svelte";
+  import { route } from "../app/route.svelte";
   import { VIEWS, type View } from "../app/viewState";
   import { t } from "../i18n/i18n";
+  import { EXAMPLE_STEPS } from "../trace/examples";
 
   let { view, lead, children, details }: { view: View; lead: Snippet; children?: Snippet; details: Snippet } =
     $props();
@@ -17,6 +19,7 @@
   <header class="label">
     <span class="number">{t("view.number", { n: number })}</span>
     <h2 id="view-heading">{t(`stage.${view}`)}</h2>
+    <span class="number">{t("step.of", { step: route.step, steps: EXAMPLE_STEPS })}</span>
   </header>
   <p class="lead">{@render lead()}</p>
   {@render children?.()}
@@ -75,6 +78,7 @@
     color: var(--ink-secondary);
   }
   h2 {
+    flex: 1;
     margin: 0;
     font-size: 1.6rem;
     font-weight: 400;

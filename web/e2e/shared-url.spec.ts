@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
-test("open shared URL restores the Example, view and language", async ({ page }) => {
-  await page.goto("/?example=placeholder&view=blocks&lang=de");
+test("open shared URL restores the Example, view, Step and language", async ({ page }) => {
+  await page.goto("/?example=moon&view=blocks&step=3&lang=de");
 
   await expect(page.locator("html")).toHaveAttribute("lang", "de");
   const pipeline = page.getByRole("navigation", { name: "Pipeline" });
@@ -13,7 +13,10 @@ test("open shared URL restores the Example, view and language", async ({ page })
   await expect(page).toHaveURL(/view=tokenize/);
   await page.reload();
   await expect(page.getByRole("heading", { level: 2 })).toHaveText("Tokenisieren");
-  await expect(page.getByRole("list", { name: "Prompt-Tokens" }).getByRole("listitem")).toHaveCount(17);
+  // The Moon Example's 46 Prompt tokens plus 3 Steps.
+  await expect(page.getByRole("list", { name: "Tokens" }).getByRole("listitem")).toHaveCount(49);
+  await expect(page.getByRole("slider", { name: "Schritt" })).toHaveValue("3");
+  await expect(page.getByRole("combobox", { name: "Beispiel" })).toHaveValue("moon");
 
   // The browser's back button returns to the previous view.
   await page.goBack();

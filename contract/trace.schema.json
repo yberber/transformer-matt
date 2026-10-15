@@ -53,6 +53,37 @@
           "pattern": "^[A-Za-z0-9+/]*={0,2}$",
           "title": "Token Bytes",
           "type": "string"
+        },
+        "predictions": {
+          "$ref": "#/$defs/TopTokens"
+        }
+      },
+      "required": [
+        "token_id",
+        "token_text",
+        "token_bytes",
+        "predictions"
+      ],
+      "title": "PositionRecord",
+      "type": "object"
+    },
+    "Token": {
+      "additionalProperties": false,
+      "description": "A token of the vocabulary: its ID, its text and its raw bytes.",
+      "properties": {
+        "token_id": {
+          "title": "Token Id",
+          "type": "integer"
+        },
+        "token_text": {
+          "title": "Token Text",
+          "type": "string"
+        },
+        "token_bytes": {
+          "contentEncoding": "base64",
+          "pattern": "^[A-Za-z0-9+/]*={0,2}$",
+          "title": "Token Bytes",
+          "type": "string"
         }
       },
       "required": [
@@ -60,7 +91,33 @@
         "token_text",
         "token_bytes"
       ],
-      "title": "PositionRecord",
+      "title": "Token",
+      "type": "object"
+    },
+    "TopTokens": {
+      "additionalProperties": false,
+      "description": "The most likely next tokens, most likely first, with their probabilities in the same order.",
+      "properties": {
+        "tokens": {
+          "items": {
+            "$ref": "#/$defs/Token"
+          },
+          "title": "Tokens",
+          "type": "array"
+        },
+        "probabilities": {
+          "contentEncoding": "base64",
+          "contentMediaType": "application/x-float32-le",
+          "pattern": "^[A-Za-z0-9+/]*={0,2}$",
+          "title": "Probabilities",
+          "type": "string"
+        }
+      },
+      "required": [
+        "tokens",
+        "probabilities"
+      ],
+      "title": "TopTokens",
       "type": "object"
     },
     "TraceHeader": {
@@ -93,6 +150,10 @@
     "header": {
       "$ref": "#/$defs/TraceHeader"
     },
+    "prompt_length": {
+      "title": "Prompt Length",
+      "type": "integer"
+    },
     "positions": {
       "items": {
         "$ref": "#/$defs/PositionRecord"
@@ -103,6 +164,7 @@
   },
   "required": [
     "header",
+    "prompt_length",
     "positions"
   ],
   "title": "Trace",

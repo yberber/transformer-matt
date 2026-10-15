@@ -2,7 +2,10 @@
   import { t } from "../i18n/i18n";
   import { displayParts, hex } from "./display";
 
-  let { bytes }: { bytes: Uint8Array } = $props();
+  // Inside another control (a token chip) or a tooltip, byte markers must not be
+  // buttons of their own: `plain` draws them as text, and the surrounding control
+  // explains them instead.
+  let { bytes, plain = false }: { bytes: Uint8Array; plain?: boolean } = $props();
 
   const parts = $derived(displayParts(bytes));
   const tooltipId = $props.id();
@@ -15,7 +18,7 @@
       aria-label={t("token.space")}>·</span
     >{:else if part.kind === "newline"}<span class="marker" role="img" aria-label={t("token.newline")}>↵</span
     >{:else if part.kind === "tab"}<span class="marker" role="img" aria-label={t("token.tab")}>→</span
-    >{:else}<span class="byte-marker"
+    >{:else if plain}<span class="bytes">{hex(part.bytes)}</span>{:else}<span class="byte-marker"
       ><button type="button" class="bytes" aria-describedby="{tooltipId}-{i}">{hex(part.bytes)}</button
       ><span class="tooltip" role="tooltip" id="{tooltipId}-{i}"
         >{t("token.partialBytes", { bytes: hex(part.bytes) })}</span

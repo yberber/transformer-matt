@@ -12,6 +12,7 @@
   let { trace }: { trace: Trace | undefined } = $props();
 
   const positionCount = $derived(trace?.positions.length ?? 0);
+  const predictions = $derived(trace?.positions.at(-1)?.predictions ?? []);
   const config = $derived(trace?.header.config);
 
   function spec(view: View): string {
@@ -50,6 +51,12 @@
         {:else if view === "blocks" && config}
           <span class="preview rings" aria-hidden="true">
             {#each { length: config.n_layer }, layer (layer)}<span></span>{/each}
+          </span>
+        {:else if view === "predict" && predictions.length}
+          <span class="preview bars" aria-hidden="true" style:--token-color={positionColor(positionCount)}>
+            {#each predictions as prediction (prediction.tokenId)}<span
+                style:height="{(prediction.probability / predictions[0]!.probability) * 100}%"
+              ></span>{/each}
           </span>
         {/if}
         <span class="spec">{spec(view)}</span>
@@ -126,6 +133,20 @@
     height: 9px;
     border-bottom: 2px solid var(--token-color);
     background: color-mix(in oklab, var(--token-color) 30%, transparent);
+  }
+  .bars {
+    align-items: flex-end;
+    height: 14px;
+  }
+  .bars span {
+    width: 4px;
+    min-height: 1px;
+    background: var(--line);
+    opacity: 0.55;
+  }
+  .bars span:first-child {
+    background: var(--token-color);
+    opacity: 1;
   }
   .rings span {
     width: 4px;

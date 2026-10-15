@@ -5,6 +5,7 @@
  */
 export interface Trace {
   header: TraceHeader;
+  prompt_length: number;
   positions: PositionRecord[];
 }
 export interface TraceHeader {
@@ -26,6 +27,22 @@ export interface ModelConfig {
  * Everything recorded for one Position.
  */
 export interface PositionRecord {
+  token_id: number;
+  token_text: string;
+  token_bytes: string;
+  predictions: TopTokens;
+}
+/**
+ * The most likely next tokens, most likely first, with their probabilities in the same order.
+ */
+export interface TopTokens {
+  tokens: Token[];
+  probabilities: string;
+}
+/**
+ * A token of the vocabulary: its ID, its text and its raw bytes.
+ */
+export interface Token {
   token_id: number;
   token_text: string;
   token_bytes: string;

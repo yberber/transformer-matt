@@ -159,7 +159,7 @@ Alongside the pipeline, an architecture view shows the whole model with shapes a
 ### Examples
 
 - Six English Examples: two short (8–12 Prompt tokens), two medium (22–28), two long (44–48). Each ships with exactly 16 precomputed Steps, so no Example exceeds 64 Positions and every Example Prompt is also a valid Live-mode Prompt.
-- The agent selects the six itself from roughly 15 drafted candidates. A candidate qualifies only if: its Prompt length falls in its band; no token 3-gram repeats within its 16 Continuation tokens; at every Step the top-1 probability exceeds the top-2 by at least 0.05; the Continuation contains no newline-only tokens and nothing offensive; and the Prompt reads as text to continue, not a question. Among qualifying candidates, prefer the largest minimum margin, and ensure at least one Example contains a word split into several tokens.
+- The agent selects the six itself from roughly 15 drafted candidates. A candidate qualifies only if: its Prompt length falls in its band; no token 3-gram repeats within its 16 Continuation tokens; at every Step the top-1 probability exceeds the top-2 by at least 0.001; the Continuation contains no newline-only tokens and nothing offensive; and the Prompt reads as text to continue, not a question. Candidates are natural prose (short stories, everyday facts), never licence or legal texts and never counting or list sequences. Among qualifying candidates, prefer the largest minimum margin, and ensure at least one Example contains a word split into several tokens. (Changed 2026-10-15: the margin was 0.05, which only memorized boilerplate such as software licences passed; 0.001 still keeps each greedy choice clear of float differences between machines.)
 - Example files are committed to the repo in both brotli-compressed and readable form. Building and deploying the site needs no Python or model.
 
 ### Trace (shared format)
@@ -226,7 +226,7 @@ Alongside the pipeline, an architecture view shows the whole model with shapes a
    - An independent Hugging Face run (plain `model(...)` plus a greedy argmax loop, not using the core) must match each file: identical tokens, probabilities within 1e-4, attention within 1/510, first 16 embedding dimensions within 1e-6.
    - Regenerating produces byte-identical files.
    - Each file is under 300 KB brotli-compressed.
-   - Each Example satisfies the selection rules (length band, no repeated 3-gram, minimum margin 0.05).
+   - Each Example satisfies the selection rules (length band, no repeated 3-gram, minimum margin 0.001).
 2. **HTTP API** (pytest against the FastAPI app with the real model):
    - Tokenize, Step (text and token-ID variants, k=0, k=1, multi-Step restore) and Health behave as specified, including limit error codes.
    - Rate limits return 429 with Retry-After; a multi-Step restore counts once.

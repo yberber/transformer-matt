@@ -1,5 +1,6 @@
 // The current view state, kept in sync with the URL. Moving to another view or
-// Example adds a history entry; changing the language replaces the current one.
+// Example adds a history entry; changing the Step or the language replaces the
+// current one, so scrubbing through Steps does not flood the history.
 import { readViewState, viewStateQuery, type ViewState } from "./viewState";
 
 function fromLocation(): ViewState {

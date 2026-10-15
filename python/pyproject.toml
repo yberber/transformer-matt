@@ -12,6 +12,7 @@ dependencies = [
 
 [project.scripts]
 regenerate = "regenerate:main"
+select-examples = "regenerate.selection:main"
 export-schema = "inside_transformer.schema:main"
 
 [dependency-groups]
